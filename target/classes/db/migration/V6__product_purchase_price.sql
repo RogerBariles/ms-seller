@@ -1,0 +1,3 @@
+ALTER TABLE products ADD COLUMN purchase_price NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+ALTER TABLE product_price_audits ADD COLUMN price_field VARCHAR(20) NOT NULL DEFAULT 'SALE';

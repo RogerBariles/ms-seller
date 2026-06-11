@@ -1,0 +1,5 @@
+INSERT INTO products (id, name, category, price, active) VALUES
+    ('10000000-0000-0000-0000-000000000001', 'Torta chocolate', 'TORTAS', 15000.00, TRUE),
+    ('10000000-0000-0000-0000-000000000002', 'Tarta frutilla', 'TARTAS', 8500.00, TRUE),
+    ('10000000-0000-0000-0000-000000000003', 'Tartine jamón y queso', 'TARTINES', 3200.00, TRUE),
+    ('10000000-0000-0000-0000-000000000004', 'Globos pack x10', 'COTILLON', 2500.00, TRUE);
