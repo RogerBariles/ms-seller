@@ -3,11 +3,11 @@ package com.pasteleria.pos.service;
 import com.pasteleria.pos.domain.entity.CashRegister;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.CashRegisterStatus;
-import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
+import com.pasteleria.pos.dto.PaymentTotalsResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.CashRegisterRepository;
@@ -35,19 +35,21 @@ public class CashRegisterService {
     private final ShiftRepository shiftRepository;
     private final SaleRepository saleRepository;
     private final UserService userService;
+    private final CloseReportBuilder closeReportBuilder;
 
     public CashRegisterService(
             CashRegisterRepository cashRegisterRepository,
             ShiftRepository shiftRepository,
             SaleRepository saleRepository,
-            UserService userService) {
+            UserService userService,
+            CloseReportBuilder closeReportBuilder) {
         this.cashRegisterRepository = cashRegisterRepository;
         this.shiftRepository = shiftRepository;
         this.saleRepository = saleRepository;
         this.userService = userService;
+        this.closeReportBuilder = closeReportBuilder;
     }
 
-    /** Caja abierta actual del día (si hay varias cerradas, devuelve la que está OPEN). */
     @Transactional(readOnly = true)
     public Optional<CashRegisterResponse> getTodayCashRegister() {
         return findOpenCashRegisterForToday()
@@ -85,7 +87,7 @@ public class CashRegisterService {
 
     @Transactional
     public CloseReportResponse closeCashRegister(UUID id) {
-        CashRegister cashRegister = cashRegisterRepository.findById(id)
+        CashRegister cashRegister = cashRegisterRepository.findByIdWithUsers(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Caja no encontrada"));
         if (cashRegister.getStatus() == CashRegisterStatus.CLOSED) {
             throw new ApiException(HttpStatus.CONFLICT, "La caja ya está cerrada");
@@ -96,30 +98,34 @@ public class CashRegisterService {
 
         UserPrincipal principal = SecurityUtils.currentUser();
         User user = userService.getUserEntity(principal.getId());
+        OffsetDateTime closedAt = OffsetDateTime.now(ZONE);
         cashRegister.setStatus(CashRegisterStatus.CLOSED);
         cashRegister.setClosedBy(user);
-        cashRegister.setClosedAt(OffsetDateTime.now(ZONE));
+        cashRegister.setClosedAt(closedAt);
         cashRegisterRepository.save(cashRegister);
 
-        BigDecimal cashSales = saleRepository.sumTotalByCashRegisterAndPaymentMethod(
-                cashRegister.getId(), PaymentMethod.EFECTIVO);
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
         long salesCount = saleRepository.countByCashRegisterId(cashRegister.getId());
-        UUID companyId = user.getCompany() != null ? user.getCompany().getId() : null;
-        BigDecimal totalSales = saleRepository.findForReport(
-                        cashRegister.getOpenedAt(),
-                        OffsetDateTime.now(ZONE),
-                        null,
-                        null,
-                        companyId)
-                .stream()
-                .map(sale -> sale.getTotal())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalSales = CloseReportBuilder.totalAmount(paymentTotals);
+        BigDecimal finalCash = cashRegister.getInitialCash().add(paymentTotals.cash());
 
         return new CloseReportResponse(
+                "CASH_REGISTER",
+                cashRegister.getOpenedAt(),
+                cashRegister.getOpenedBy().getName(),
                 cashRegister.getInitialCash(),
-                cashSales,
+                closedAt,
+                user.getName(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                cashRegister.getInitialCash(),
+                finalCash,
                 salesCount,
-                totalSales);
+                totalSales,
+                paymentTotals);
     }
 
     public CashRegister getOpenCashRegisterForToday() {

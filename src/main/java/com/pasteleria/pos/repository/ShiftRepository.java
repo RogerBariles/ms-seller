@@ -34,4 +34,14 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             WHERE s.id = :id
             """)
     Optional<Shift> findByIdWithSellerAndCompany(@Param("id") UUID id);
+
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller seller
+            LEFT JOIN FETCH seller.company
+            JOIN FETCH s.cashRegister cr
+            JOIN FETCH cr.openedBy
+            WHERE s.id = :id
+            """)
+    Optional<Shift> findByIdForClose(@Param("id") UUID id);
 }

@@ -31,4 +31,12 @@ public interface CashRegisterRepository extends JpaRepository<CashRegister, UUID
     List<CashRegister> findAllByBusinessDateOrderByOpenedAtDesc(@Param("businessDate") LocalDate businessDate);
 
     boolean existsByBusinessDateAndStatus(LocalDate businessDate, CashRegisterStatus status);
+
+    @Query("""
+            SELECT cr FROM CashRegister cr
+            JOIN FETCH cr.openedBy
+            LEFT JOIN FETCH cr.closedBy
+            WHERE cr.id = :id
+            """)
+    Optional<CashRegister> findByIdWithUsers(@Param("id") UUID id);
 }
