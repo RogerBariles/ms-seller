@@ -21,6 +21,8 @@ public final class DiscountCalculator {
             case PERCENTAGE -> amount.multiply(value)
                     .divide(BigDecimal.valueOf(100), SCALE, RoundingMode.HALF_UP);
             case FIXED -> value.min(amount).setScale(SCALE, RoundingMode.HALF_UP);
+            case PERCENTAGE_EXTRA -> amount.multiply(value)
+                        .divide(BigDecimal.valueOf(100), SCALE, RoundingMode.HALF_UP).negate();
         };
     }
 
