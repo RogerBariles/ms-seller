@@ -26,4 +26,22 @@ public interface ShiftCashMovementRepository extends JpaRepository<ShiftCashMove
     BigDecimal sumByShiftIdAndType(
             @Param("shiftId") UUID shiftId,
             @Param("type") CashMovementType type);
+
+    @Query("""
+            SELECT m FROM ShiftCashMovement m
+            JOIN FETCH m.createdBy
+            JOIN m.shift s
+            WHERE s.cashRegister.id = :cashRegisterId
+            ORDER BY m.createdAt ASC
+            """)
+    List<ShiftCashMovement> findByCashRegisterIdOrderByCreatedAtAsc(@Param("cashRegisterId") UUID cashRegisterId);
+
+    @Query("""
+            SELECT COALESCE(SUM(m.amount), 0) FROM ShiftCashMovement m
+            JOIN m.shift s
+            WHERE s.cashRegister.id = :cashRegisterId AND m.movementType = :type
+            """)
+    BigDecimal sumByCashRegisterIdAndType(
+            @Param("cashRegisterId") UUID cashRegisterId,
+            @Param("type") CashMovementType type);
 }

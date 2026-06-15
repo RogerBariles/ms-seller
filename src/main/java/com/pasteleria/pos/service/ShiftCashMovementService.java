@@ -85,11 +85,34 @@ public class ShiftCashMovementService {
         return movementRepository.sumByShiftIdAndType(shiftId, CashMovementType.WITHDRAWAL);
     }
 
+    @Transactional(readOnly = true)
+    public List<ShiftCashMovementResponse> listMovementsByCashRegister(UUID cashRegisterId) {
+        return movementRepository.findByCashRegisterIdOrderByCreatedAtAsc(cashRegisterId).stream()
+                .map(DtoMapper::toShiftCashMovementResponse)
+                .toList();
+    }
+
+    public BigDecimal sumIncomeByCashRegister(UUID cashRegisterId) {
+        return movementRepository.sumByCashRegisterIdAndType(cashRegisterId, CashMovementType.INCOME);
+    }
+
+    public BigDecimal sumWithdrawalByCashRegister(UUID cashRegisterId) {
+        return movementRepository.sumByCashRegisterIdAndType(cashRegisterId, CashMovementType.WITHDRAWAL);
+    }
+
     public BigDecimal expectedFinalCash(UUID shiftId, BigDecimal initialCash, BigDecimal cashSales) {
         return initialCash
                 .add(cashSales)
                 .add(sumIncome(shiftId))
                 .subtract(sumWithdrawal(shiftId));
+    }
+
+    public BigDecimal expectedFinalCashForCashRegister(
+            UUID cashRegisterId, BigDecimal initialCash, BigDecimal cashSales) {
+        return initialCash
+                .add(cashSales)
+                .add(sumIncomeByCashRegister(cashRegisterId))
+                .subtract(sumWithdrawalByCashRegister(cashRegisterId));
     }
 
     public BigDecimal availableCash(UUID shiftId, BigDecimal initialCash) {

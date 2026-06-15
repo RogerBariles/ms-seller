@@ -4,10 +4,12 @@ import com.pasteleria.pos.domain.entity.CashRegister;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.CashRegisterStatus;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
+import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.dto.PaymentTotalsResponse;
+import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.CashRegisterRepository;
@@ -36,24 +38,27 @@ public class CashRegisterService {
     private final SaleRepository saleRepository;
     private final UserService userService;
     private final CloseReportBuilder closeReportBuilder;
+    private final ShiftCashMovementService cashMovementService;
 
     public CashRegisterService(
             CashRegisterRepository cashRegisterRepository,
             ShiftRepository shiftRepository,
             SaleRepository saleRepository,
             UserService userService,
-            CloseReportBuilder closeReportBuilder) {
+            CloseReportBuilder closeReportBuilder,
+            ShiftCashMovementService cashMovementService) {
         this.cashRegisterRepository = cashRegisterRepository;
         this.shiftRepository = shiftRepository;
         this.saleRepository = saleRepository;
         this.userService = userService;
         this.closeReportBuilder = closeReportBuilder;
+        this.cashMovementService = cashMovementService;
     }
 
     @Transactional(readOnly = true)
-    public Optional<CashRegisterResponse> getTodayCashRegister() {
+    public Optional<CashRegisterActiveResponse> getTodayCashRegister() {
         return findOpenCashRegisterForToday()
-                .map(DtoMapper::toCashRegisterResponse);
+                .map(this::toActiveResponse);
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +112,14 @@ public class CashRegisterService {
         PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
         long salesCount = saleRepository.countByCashRegisterId(cashRegister.getId());
         BigDecimal totalSales = CloseReportBuilder.totalAmount(paymentTotals);
-        BigDecimal finalCash = cashRegister.getInitialCash().add(paymentTotals.cash());
+        BigDecimal cashIncome = cashMovementService.sumIncomeByCashRegister(cashRegister.getId());
+        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawalByCashRegister(cashRegister.getId());
+        List<ShiftCashMovementResponse> movements =
+                cashMovementService.listMovementsByCashRegister(cashRegister.getId());
+        BigDecimal finalCash = cashMovementService.expectedFinalCashForCashRegister(
+                cashRegister.getId(),
+                cashRegister.getInitialCash(),
+                paymentTotals.cash());
 
         return new CloseReportResponse(
                 "CASH_REGISTER",
@@ -126,9 +138,26 @@ public class CashRegisterService {
                 salesCount,
                 totalSales,
                 paymentTotals,
-                List.of(),
-                BigDecimal.ZERO,
-                BigDecimal.ZERO);
+                movements,
+                cashIncome,
+                cashWithdrawal);
+    }
+
+    private CashRegisterActiveResponse toActiveResponse(CashRegister cashRegister) {
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
+        BigDecimal cashIncome = cashMovementService.sumIncomeByCashRegister(cashRegister.getId());
+        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawalByCashRegister(cashRegister.getId());
+        BigDecimal expectedFinalCash = cashMovementService.expectedFinalCashForCashRegister(
+                cashRegister.getId(),
+                cashRegister.getInitialCash(),
+                paymentTotals.cash());
+        return new CashRegisterActiveResponse(
+                DtoMapper.toCashRegisterResponse(cashRegister),
+                cashMovementService.listMovementsByCashRegister(cashRegister.getId()),
+                paymentTotals.cash(),
+                cashIncome,
+                cashWithdrawal,
+                expectedFinalCash);
     }
 
     public CashRegister getOpenCashRegisterForToday() {

@@ -1,5 +1,6 @@
 package com.pasteleria.pos.controller;
 
+import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
@@ -28,7 +29,7 @@ public class CashRegisterController {
     }
 
     @GetMapping("/today")
-    public ResponseEntity<CashRegisterResponse> getToday() {
+    public ResponseEntity<CashRegisterActiveResponse> getToday() {
         return cashRegisterService.getTodayCashRegister()
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
