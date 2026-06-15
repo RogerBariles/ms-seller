@@ -125,7 +125,10 @@ public class CashRegisterService {
                 finalCash,
                 salesCount,
                 totalSales,
-                paymentTotals);
+                paymentTotals,
+                List.of(),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO);
     }
 
     public CashRegister getOpenCashRegisterForToday() {

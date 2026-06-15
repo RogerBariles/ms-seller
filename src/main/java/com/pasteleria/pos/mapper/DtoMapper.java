@@ -7,6 +7,7 @@ import com.pasteleria.pos.domain.entity.ProductPriceAudit;
 import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.SaleItem;
 import com.pasteleria.pos.domain.entity.Shift;
+import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CompanyResponse;
@@ -14,6 +15,7 @@ import com.pasteleria.pos.dto.ProductPriceAuditResponse;
 import com.pasteleria.pos.dto.ProductResponse;
 import com.pasteleria.pos.dto.SaleItemResponse;
 import com.pasteleria.pos.dto.SaleResponse;
+import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
 import com.pasteleria.pos.dto.UserResponse;
 import java.util.List;
@@ -62,6 +64,16 @@ public final class DtoMapper {
                 shift.getStatus(),
                 shift.getStartedAt(),
                 shift.getEndedAt());
+    }
+
+    public static ShiftCashMovementResponse toShiftCashMovementResponse(ShiftCashMovement movement) {
+        return new ShiftCashMovementResponse(
+                movement.getId(),
+                movement.getMovementType(),
+                movement.getAmount(),
+                movement.getDetail(),
+                movement.getCreatedBy().getName(),
+                movement.getCreatedAt());
     }
 
     public static ProductResponse toProductResponse(Product product) {

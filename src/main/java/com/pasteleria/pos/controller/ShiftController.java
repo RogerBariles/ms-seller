@@ -1,9 +1,13 @@
 package com.pasteleria.pos.controller;
 
 import com.pasteleria.pos.dto.CloseReportResponse;
+import com.pasteleria.pos.dto.ShiftActiveResponse;
+import com.pasteleria.pos.dto.ShiftCashMovementRequest;
+import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
 import com.pasteleria.pos.service.BirthdaySaleScheduler;
 import com.pasteleria.pos.service.ShiftService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -12,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,7 +34,7 @@ public class ShiftController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<ShiftResponse> getActive() {
+    public ResponseEntity<ShiftActiveResponse> getActive() {
         return shiftService.getActiveShift()
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
@@ -40,6 +45,13 @@ public class ShiftController {
         ShiftResponse shift = shiftService.startShift();
         birthdaySaleScheduler.processBirthdaysForDate(LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")));
         return shift;
+    }
+
+    @PostMapping("/{id}/cash-movements")
+    public ShiftCashMovementResponse addCashMovement(
+            @PathVariable UUID id,
+            @Valid @RequestBody ShiftCashMovementRequest request) {
+        return shiftService.addCashMovement(id, request);
     }
 
     @PostMapping("/{id}/close")

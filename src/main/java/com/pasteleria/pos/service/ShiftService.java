@@ -3,9 +3,13 @@ package com.pasteleria.pos.service;
 import com.pasteleria.pos.domain.entity.CashRegister;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.PaymentTotalsResponse;
+import com.pasteleria.pos.dto.ShiftActiveResponse;
+import com.pasteleria.pos.dto.ShiftCashMovementRequest;
+import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
@@ -16,6 +20,7 @@ import com.pasteleria.pos.security.UserPrincipal;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -32,25 +37,28 @@ public class ShiftService {
     private final SaleRepository saleRepository;
     private final UserService userService;
     private final CloseReportBuilder closeReportBuilder;
+    private final ShiftCashMovementService cashMovementService;
 
     public ShiftService(
             ShiftRepository shiftRepository,
             CashRegisterService cashRegisterService,
             SaleRepository saleRepository,
             UserService userService,
-            CloseReportBuilder closeReportBuilder) {
+            CloseReportBuilder closeReportBuilder,
+            ShiftCashMovementService cashMovementService) {
         this.shiftRepository = shiftRepository;
         this.cashRegisterService = cashRegisterService;
         this.saleRepository = saleRepository;
         this.userService = userService;
         this.closeReportBuilder = closeReportBuilder;
+        this.cashMovementService = cashMovementService;
     }
 
     @Transactional(readOnly = true)
-    public Optional<ShiftResponse> getActiveShift() {
+    public Optional<ShiftActiveResponse> getActiveShift() {
         UserPrincipal principal = SecurityUtils.currentUser();
         return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN)
-                .map(DtoMapper::toShiftResponse);
+                .map(this::toActiveResponse);
     }
 
     @Transactional
@@ -75,6 +83,11 @@ public class ShiftService {
     }
 
     @Transactional
+    public ShiftCashMovementResponse addCashMovement(UUID shiftId, ShiftCashMovementRequest request) {
+        return cashMovementService.addMovement(shiftId, request);
+    }
+
+    @Transactional
     public CloseReportResponse closeShift(UUID id) {
         UserPrincipal principal = SecurityUtils.currentUser();
         Shift shift = shiftRepository.findByIdForClose(id)
@@ -95,7 +108,11 @@ public class ShiftService {
         long salesCount = saleRepository.countByShiftId(shift.getId());
         BigDecimal totalSales = CloseReportBuilder.totalAmount(paymentTotals);
         BigDecimal cashSales = paymentTotals.cash();
-        BigDecimal finalCash = shift.getInitialCash().add(cashSales);
+        BigDecimal cashIncome = cashMovementService.sumIncome(shift.getId());
+        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawal(shift.getId());
+        List<ShiftCashMovementResponse> movements = cashMovementService.listMovements(shift.getId());
+        BigDecimal finalCash = cashMovementService.expectedFinalCash(
+                shift.getId(), shift.getInitialCash(), cashSales);
 
         shift.setCashSalesTotal(cashSales);
         shift.setSalesCount((int) salesCount);
@@ -119,11 +136,30 @@ public class ShiftService {
                 finalCash,
                 salesCount,
                 totalSales,
-                paymentTotals);
+                paymentTotals,
+                movements,
+                cashIncome,
+                cashWithdrawal);
     }
 
     public Shift getRequiredActiveShiftForSeller(UUID sellerId) {
         return shiftRepository.findBySellerIdAndStatus(sellerId, ShiftStatus.OPEN)
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Debe tener caja y turno abiertos para vender"));
+    }
+
+    private ShiftActiveResponse toActiveResponse(Shift shift) {
+        BigDecimal cashSales = saleRepository.sumTotalByShiftAndPaymentMethod(
+                shift.getId(), PaymentMethod.EFECTIVO);
+        BigDecimal cashIncome = cashMovementService.sumIncome(shift.getId());
+        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawal(shift.getId());
+        BigDecimal expectedFinalCash = cashMovementService.expectedFinalCash(
+                shift.getId(), shift.getInitialCash(), cashSales);
+        return new ShiftActiveResponse(
+                DtoMapper.toShiftResponse(shift),
+                cashMovementService.listMovements(shift.getId()),
+                cashSales,
+                cashIncome,
+                cashWithdrawal,
+                expectedFinalCash);
     }
 }

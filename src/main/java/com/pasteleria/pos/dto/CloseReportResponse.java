@@ -2,6 +2,7 @@ package com.pasteleria.pos.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record CloseReportResponse(
         String type,
@@ -19,6 +20,9 @@ public record CloseReportResponse(
         BigDecimal finalCash,
         long salesCount,
         BigDecimal totalSalesAmount,
-        PaymentTotalsResponse paymentTotals
+        PaymentTotalsResponse paymentTotals,
+        List<ShiftCashMovementResponse> cashMovements,
+        BigDecimal cashIncome,
+        BigDecimal cashWithdrawal
 ) {
 }
