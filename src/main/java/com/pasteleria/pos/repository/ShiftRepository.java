@@ -23,6 +23,8 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
 
     List<Shift> findByCashRegisterIdOrderByStartedAtAsc(UUID cashRegisterId);
 
+    boolean existsByCashRegisterId(UUID cashRegisterId);
+
     boolean existsByCashRegisterIdAndStatus(UUID cashRegisterId, ShiftStatus status);
 
     Optional<Shift> findFirstByStatusOrderByStartedAtAsc(ShiftStatus status);

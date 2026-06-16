@@ -165,6 +165,18 @@ public class CashRegisterService {
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay caja abierta para hoy"));
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal initialCashForNewShift(CashRegister cashRegister) {
+        if (!shiftRepository.existsByCashRegisterId(cashRegister.getId())) {
+            return cashRegister.getInitialCash();
+        }
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
+        return cashMovementService.expectedFinalCashForCashRegister(
+                cashRegister.getId(),
+                cashRegister.getInitialCash(),
+                paymentTotals.cash());
+    }
+
     private Optional<CashRegister> findOpenCashRegisterForToday() {
         return cashRegisterRepository.findFirstByBusinessDateAndStatusOrderByOpenedAtDesc(
                 today(), CashRegisterStatus.OPEN);

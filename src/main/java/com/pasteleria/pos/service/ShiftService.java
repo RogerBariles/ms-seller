@@ -76,7 +76,7 @@ public class ShiftService {
         shift.setId(UUID.randomUUID());
         shift.setCashRegister(cashRegister);
         shift.setSeller(seller);
-        shift.setInitialCash(cashRegister.getInitialCash());
+        shift.setInitialCash(cashRegisterService.initialCashForNewShift(cashRegister));
         shift.setStatus(ShiftStatus.OPEN);
         shift.setStartedAt(OffsetDateTime.now(ZONE));
         return DtoMapper.toShiftResponse(shiftRepository.save(shift));
