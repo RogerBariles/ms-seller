@@ -8,6 +8,8 @@ import java.util.Map;
 public record SalesReportResponse(
         long totalSalesCount,
         BigDecimal totalAmount,
+        BigDecimal totalCost,
+        BigDecimal totalProfit,
         Map<PaymentMethod, BigDecimal> amountByPaymentMethod,
         List<SaleResponse> sales
 ) {

@@ -108,6 +108,7 @@ public class SaleService {
         item.setProductName(itemName);
         item.setQuantity(1);
         item.setUnitPrice(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        item.setUnitPurchasePrice(birthdayProduct.getPurchasePrice());
         item.setLineSubtotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         item.setLineDiscount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         item.setLineTotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
@@ -144,6 +145,7 @@ public class SaleService {
             item.setProductName(product.getName());
             item.setQuantity(itemRequest.quantity());
             item.setUnitPrice(product.getPrice());
+            item.setUnitPurchasePrice(product.getPurchasePrice());
             item.setDiscountType(itemDiscountType);
             item.setDiscountValue(itemDiscountValue);
             item.setLineSubtotal(lineSubtotal);

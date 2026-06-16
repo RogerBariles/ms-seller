@@ -9,10 +9,14 @@ public record SaleItemResponse(
         String productName,
         Integer quantity,
         BigDecimal unitPrice,
+        BigDecimal unitPurchasePrice,
+        BigDecimal unitRealPrice,
         DiscountType discountType,
         BigDecimal discountValue,
         BigDecimal lineSubtotal,
         BigDecimal lineDiscount,
-        BigDecimal lineTotal
+        BigDecimal lineTotal,
+        BigDecimal lineCost,
+        BigDecimal lineProfit
 ) {
 }

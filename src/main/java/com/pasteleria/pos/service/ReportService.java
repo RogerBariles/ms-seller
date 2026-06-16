@@ -8,6 +8,7 @@ import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.SaleRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -61,11 +62,24 @@ public class ReportService {
         }
 
         BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalCost = BigDecimal.ZERO;
         for (Sale sale : sales) {
             totalAmount = totalAmount.add(sale.getTotal());
             amountByPaymentMethod.merge(sale.getPaymentMethod(), sale.getTotal(), BigDecimal::add);
+            for (var item : sale.getItems()) {
+                totalCost = totalCost.add(
+                        item.getUnitPurchasePrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+            }
         }
+        totalCost = totalCost.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalProfit = totalAmount.subtract(totalCost).setScale(2, RoundingMode.HALF_UP);
 
-        return new SalesReportResponse(sales.size(), totalAmount.setScale(2), amountByPaymentMethod, saleResponses);
+        return new SalesReportResponse(
+                sales.size(),
+                totalAmount.setScale(2, RoundingMode.HALF_UP),
+                totalCost,
+                totalProfit,
+                amountByPaymentMethod,
+                saleResponses);
     }
 }

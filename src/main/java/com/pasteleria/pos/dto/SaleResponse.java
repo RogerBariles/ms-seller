@@ -18,6 +18,8 @@ public record SaleResponse(
         BigDecimal total,
         DiscountType totalDiscountType,
         BigDecimal totalDiscountValue,
+        BigDecimal costTotal,
+        BigDecimal profit,
         OffsetDateTime createdAt,
         List<SaleItemResponse> items
 ) {

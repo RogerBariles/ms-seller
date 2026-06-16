@@ -37,6 +37,9 @@ public class SaleItem {
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
+    @Column(name = "unit_purchase_price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitPurchasePrice = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "discount_type", length = 20)
     private DiscountType discountType;
@@ -99,6 +102,14 @@ public class SaleItem {
 
     public void setUnitPrice(BigDecimal unitPrice) {
         this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getUnitPurchasePrice() {
+        return unitPurchasePrice;
+    }
+
+    public void setUnitPurchasePrice(BigDecimal unitPurchasePrice) {
+        this.unitPurchasePrice = unitPurchasePrice;
     }
 
     public DiscountType getDiscountType() {

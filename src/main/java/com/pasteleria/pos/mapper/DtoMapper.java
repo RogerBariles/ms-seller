@@ -15,6 +15,8 @@ import com.pasteleria.pos.dto.ProductPriceAuditResponse;
 import com.pasteleria.pos.dto.ProductResponse;
 import com.pasteleria.pos.dto.SaleItemResponse;
 import com.pasteleria.pos.dto.SaleResponse;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
 import com.pasteleria.pos.dto.UserResponse;
@@ -105,6 +107,11 @@ public final class DtoMapper {
         List<SaleItemResponse> items = sale.getItems().stream()
                 .map(DtoMapper::toSaleItemResponse)
                 .toList();
+        BigDecimal costTotal = items.stream()
+                .map(SaleItemResponse::lineCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal profit = sale.getTotal().subtract(costTotal).setScale(2, RoundingMode.HALF_UP);
         return new SaleResponse(
                 sale.getId(),
                 sale.getSeller().getId(),
@@ -116,20 +123,32 @@ public final class DtoMapper {
                 sale.getTotal(),
                 sale.getTotalDiscountType(),
                 sale.getTotalDiscountValue(),
+                costTotal,
+                profit,
                 sale.getCreatedAt(),
                 items);
     }
 
     public static SaleItemResponse toSaleItemResponse(SaleItem item) {
+        BigDecimal lineCost = item.getUnitPurchasePrice()
+                .multiply(BigDecimal.valueOf(item.getQuantity()))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal lineProfit = item.getLineTotal().subtract(lineCost).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal unitRealPrice = item.getLineTotal()
+                .divide(BigDecimal.valueOf(item.getQuantity()), 2, RoundingMode.HALF_UP);
         return new SaleItemResponse(
                 item.getProduct().getId(),
                 item.getProductName(),
                 item.getQuantity(),
                 item.getUnitPrice(),
+                item.getUnitPurchasePrice(),
+                unitRealPrice,
                 item.getDiscountType(),
                 item.getDiscountValue(),
                 item.getLineSubtotal(),
                 item.getLineDiscount(),
-                item.getLineTotal());
+                item.getLineTotal(),
+                lineCost,
+                lineProfit);
     }
 }
