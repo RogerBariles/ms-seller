@@ -6,4 +6,5 @@ public enum ProductCategory {
     TARTINES,
     COTILLON,
     ALFAJORES,
+    POSTRES
 }
