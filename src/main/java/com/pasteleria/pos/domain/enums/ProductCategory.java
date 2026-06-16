@@ -4,5 +4,6 @@ public enum ProductCategory {
     TORTAS,
     TARTAS,
     TARTINES,
-    COTILLON
+    COTILLON,
+    ALFAJORES,
 }
