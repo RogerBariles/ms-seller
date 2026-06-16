@@ -72,7 +72,8 @@ public class SaleService {
         sale.setBirthday(false);
 
         List<SaleItem> items = buildItems(sale, request.items());
-        Totals totals = calculateTotals(items, totalDiscountType, totalDiscountValue);
+        Totals totals = calculateTotals(
+                items, totalDiscountType, totalDiscountValue, request.manualTotal());
 
         if (totals.total().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El total de la venta debe ser mayor a cero");
@@ -159,7 +160,8 @@ public class SaleService {
     private Totals calculateTotals(
             List<SaleItem> items,
             DiscountType totalDiscountType,
-            BigDecimal totalDiscountValue) {
+            BigDecimal totalDiscountValue,
+            BigDecimal manualTotal) {
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal lineDiscountTotal = BigDecimal.ZERO;
 
@@ -169,6 +171,19 @@ public class SaleService {
         }
 
         BigDecimal afterLineDiscounts = subtotal.subtract(lineDiscountTotal);
+
+        if (manualTotal != null) {
+            if (manualTotal.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "El total manual debe ser mayor a cero");
+            }
+            BigDecimal total = manualTotal.setScale(2, RoundingMode.HALF_UP);
+            BigDecimal discountTotal = subtotal.subtract(total).setScale(2, RoundingMode.HALF_UP);
+            return new Totals(
+                    subtotal.setScale(2, RoundingMode.HALF_UP),
+                    discountTotal,
+                    total);
+        }
+
         BigDecimal totalDiscount = DiscountCalculator.applyDiscount(
                 afterLineDiscounts, totalDiscountType, totalDiscountValue);
         BigDecimal total = afterLineDiscounts.subtract(totalDiscount).setScale(2, RoundingMode.HALF_UP);

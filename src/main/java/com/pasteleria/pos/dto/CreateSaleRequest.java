@@ -15,6 +15,7 @@ public record CreateSaleRequest(
         @NotNull PaymentMethod paymentMethod,
         @Min(1) Integer installments,
         DiscountType totalDiscountType,
-        @DecimalMin("0.00") BigDecimal totalDiscountValue
+        @DecimalMin("0.00") BigDecimal totalDiscountValue,
+        @DecimalMin("0.01") BigDecimal manualTotal
 ) {
 }
