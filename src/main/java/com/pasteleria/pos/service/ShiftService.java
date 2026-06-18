@@ -148,8 +148,7 @@ public class ShiftService {
     }
 
     private ShiftActiveResponse toActiveResponse(Shift shift) {
-        BigDecimal cashSales = saleRepository.sumTotalByShiftAndPaymentMethod(
-                shift.getId(), PaymentMethod.EFECTIVO);
+        BigDecimal cashSales = saleRepository.sumCashAmountByShift(shift.getId());
         BigDecimal cashIncome = cashMovementService.sumIncome(shift.getId());
         BigDecimal cashWithdrawal = cashMovementService.sumWithdrawal(shift.getId());
         BigDecimal expectedFinalCash = cashMovementService.expectedFinalCash(

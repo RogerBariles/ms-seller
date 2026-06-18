@@ -116,8 +116,7 @@ public class ShiftCashMovementService {
     }
 
     public BigDecimal availableCash(UUID shiftId, BigDecimal initialCash) {
-        BigDecimal cashSales = saleRepository.sumTotalByShiftAndPaymentMethod(
-                shiftId, com.pasteleria.pos.domain.enums.PaymentMethod.EFECTIVO);
+        BigDecimal cashSales = saleRepository.sumCashAmountByShift(shiftId);
         return expectedFinalCash(shiftId, initialCash, cashSales);
     }
 

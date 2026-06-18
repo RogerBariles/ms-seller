@@ -49,6 +49,9 @@ public class Sale {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
 
+    @Column(name = "cash_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal cashAmount = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "total_discount_type", length = 20)
     private DiscountType totalDiscountType;
@@ -127,6 +130,14 @@ public class Sale {
 
     public void setTotal(BigDecimal total) {
         this.total = total;
+    }
+
+    public BigDecimal getCashAmount() {
+        return cashAmount;
+    }
+
+    public void setCashAmount(BigDecimal cashAmount) {
+        this.cashAmount = cashAmount;
     }
 
     public DiscountType getTotalDiscountType() {

@@ -92,6 +92,16 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <configuration>
+                    <url>jdbc:postgresql://localhost:5432/pos_pasteleria</url>
+                    <user>pos</user>
+                    <password>pos123</password>
+                    <locations>classpath:db/migration</locations>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -65,7 +65,10 @@ public class ReportService {
         BigDecimal totalCost = BigDecimal.ZERO;
         for (Sale sale : sales) {
             totalAmount = totalAmount.add(sale.getTotal());
-            amountByPaymentMethod.merge(sale.getPaymentMethod(), sale.getTotal(), BigDecimal::add);
+            BigDecimal cashPortion = sale.getCashAmount();
+            BigDecimal nonCashPortion = sale.getTotal().subtract(cashPortion);
+            amountByPaymentMethod.merge(PaymentMethod.EFECTIVO, cashPortion, BigDecimal::add);
+            amountByPaymentMethod.merge(sale.getPaymentMethod(), nonCashPortion, BigDecimal::add);
             for (var item : sale.getItems()) {
                 totalCost = totalCost.add(
                         item.getUnitPurchasePrice().multiply(BigDecimal.valueOf(item.getQuantity())));

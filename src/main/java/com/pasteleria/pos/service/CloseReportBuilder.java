@@ -18,27 +18,27 @@ public class CloseReportBuilder {
 
     public PaymentTotalsResponse paymentTotalsByShift(UUID shiftId) {
         return new PaymentTotalsResponse(
-                sumByShift(shiftId, PaymentMethod.EFECTIVO),
-                sumByShift(shiftId, PaymentMethod.TARJETA),
-                sumByShift(shiftId, PaymentMethod.TRANSFERENCIA));
+                saleRepository.sumCashAmountByShift(shiftId),
+                sumNonCashByShift(shiftId, PaymentMethod.TARJETA),
+                sumNonCashByShift(shiftId, PaymentMethod.TRANSFERENCIA));
     }
 
     public PaymentTotalsResponse paymentTotalsByCashRegister(UUID cashRegisterId) {
         return new PaymentTotalsResponse(
-                sumByCashRegister(cashRegisterId, PaymentMethod.EFECTIVO),
-                sumByCashRegister(cashRegisterId, PaymentMethod.TARJETA),
-                sumByCashRegister(cashRegisterId, PaymentMethod.TRANSFERENCIA));
+                saleRepository.sumCashAmountByCashRegister(cashRegisterId),
+                sumNonCashByCashRegister(cashRegisterId, PaymentMethod.TARJETA),
+                sumNonCashByCashRegister(cashRegisterId, PaymentMethod.TRANSFERENCIA));
     }
 
     public static BigDecimal totalAmount(PaymentTotalsResponse totals) {
         return totals.cash().add(totals.card()).add(totals.transfer());
     }
 
-    private BigDecimal sumByShift(UUID shiftId, PaymentMethod method) {
-        return saleRepository.sumTotalByShiftAndPaymentMethod(shiftId, method);
+    private BigDecimal sumNonCashByShift(UUID shiftId, PaymentMethod method) {
+        return saleRepository.sumNonCashAmountByShiftAndPaymentMethod(shiftId, method);
     }
 
-    private BigDecimal sumByCashRegister(UUID cashRegisterId, PaymentMethod method) {
-        return saleRepository.sumTotalByCashRegisterAndPaymentMethod(cashRegisterId, method);
+    private BigDecimal sumNonCashByCashRegister(UUID cashRegisterId, PaymentMethod method) {
+        return saleRepository.sumNonCashAmountByCashRegisterAndPaymentMethod(cashRegisterId, method);
     }
 }

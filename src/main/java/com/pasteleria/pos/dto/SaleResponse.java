@@ -16,6 +16,7 @@ public record SaleResponse(
         BigDecimal subtotal,
         BigDecimal discountTotal,
         BigDecimal total,
+        BigDecimal cashAmount,
         DiscountType totalDiscountType,
         BigDecimal totalDiscountValue,
         BigDecimal costTotal,

@@ -17,6 +17,7 @@ import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
 import com.pasteleria.pos.util.DiscountCalculator;
+import com.pasteleria.pos.util.MixedPaymentCalculator;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -72,8 +73,22 @@ public class SaleService {
         sale.setBirthday(false);
 
         List<SaleItem> items = buildItems(sale, request.items());
-        Totals totals = calculateTotals(
-                items, totalDiscountType, totalDiscountValue, request.manualTotal());
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal lineDiscountTotal = BigDecimal.ZERO;
+        for (SaleItem item : items) {
+            subtotal = subtotal.add(item.getLineSubtotal());
+            lineDiscountTotal = lineDiscountTotal.add(item.getLineDiscount());
+        }
+        BigDecimal afterLineDiscounts = MixedPaymentCalculator.afterLineDiscounts(subtotal, lineDiscountTotal);
+        BigDecimal cashPortion = MixedPaymentCalculator.resolvePartialCash(
+                request.paymentMethod(), request.cashAmount(), afterLineDiscounts);
+        MixedPaymentCalculator.Totals totals = MixedPaymentCalculator.calculateTotals(
+                subtotal,
+                lineDiscountTotal,
+                totalDiscountType,
+                totalDiscountValue,
+                request.manualTotal(),
+                cashPortion);
 
         if (totals.total().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El total de la venta debe ser mayor a cero");
@@ -83,6 +98,8 @@ public class SaleService {
         sale.setSubtotal(totals.subtotal());
         sale.setDiscountTotal(totals.discountTotal());
         sale.setTotal(totals.total());
+        sale.setCashAmount(MixedPaymentCalculator.resolveCashAmount(
+                request.paymentMethod(), cashPortion, totals.total()));
 
         return DtoMapper.toSaleResponse(saleRepository.save(sale));
     }
@@ -101,6 +118,7 @@ public class SaleService {
         sale.setSubtotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         sale.setDiscountTotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         sale.setTotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        sale.setCashAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
 
         SaleItem item = new SaleItem();
         item.setId(UUID.randomUUID());
@@ -157,43 +175,6 @@ public class SaleService {
         return items;
     }
 
-    private Totals calculateTotals(
-            List<SaleItem> items,
-            DiscountType totalDiscountType,
-            BigDecimal totalDiscountValue,
-            BigDecimal manualTotal) {
-        BigDecimal subtotal = BigDecimal.ZERO;
-        BigDecimal lineDiscountTotal = BigDecimal.ZERO;
-
-        for (SaleItem item : items) {
-            subtotal = subtotal.add(item.getLineSubtotal());
-            lineDiscountTotal = lineDiscountTotal.add(item.getLineDiscount());
-        }
-
-        BigDecimal afterLineDiscounts = subtotal.subtract(lineDiscountTotal);
-
-        if (manualTotal != null) {
-            if (manualTotal.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "El total manual debe ser mayor a cero");
-            }
-            BigDecimal total = manualTotal.setScale(2, RoundingMode.HALF_UP);
-            BigDecimal discountTotal = subtotal.subtract(total).setScale(2, RoundingMode.HALF_UP);
-            return new Totals(
-                    subtotal.setScale(2, RoundingMode.HALF_UP),
-                    discountTotal,
-                    total);
-        }
-
-        BigDecimal totalDiscount = DiscountCalculator.applyDiscount(
-                afterLineDiscounts, totalDiscountType, totalDiscountValue);
-        BigDecimal total = afterLineDiscounts.subtract(totalDiscount).setScale(2, RoundingMode.HALF_UP);
-
-        return new Totals(
-                subtotal.setScale(2, RoundingMode.HALF_UP),
-                lineDiscountTotal.add(totalDiscount).setScale(2, RoundingMode.HALF_UP),
-                total);
-    }
-
     private void validatePayment(CreateSaleRequest request) {
         if (request.paymentMethod() == PaymentMethod.TARJETA) {
             if (request.installments() == null || request.installments() < 1) {
@@ -214,8 +195,5 @@ public class SaleService {
             return null;
         }
         return value;
-    }
-
-    private record Totals(BigDecimal subtotal, BigDecimal discountTotal, BigDecimal total) {
     }
 }

@@ -20,6 +20,28 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
             @Param("shiftId") UUID shiftId,
             @Param("paymentMethod") PaymentMethod paymentMethod);
 
+    @Query("SELECT COALESCE(SUM(s.cashAmount), 0) FROM Sale s WHERE s.shift.id = :shiftId")
+    BigDecimal sumCashAmountByShift(@Param("shiftId") UUID shiftId);
+
+    @Query("SELECT COALESCE(SUM(s.cashAmount), 0) FROM Sale s WHERE s.shift.cashRegister.id = :cashRegisterId")
+    BigDecimal sumCashAmountByCashRegister(@Param("cashRegisterId") UUID cashRegisterId);
+
+    @Query("""
+            SELECT COALESCE(SUM(s.total - s.cashAmount), 0) FROM Sale s
+            WHERE s.shift.id = :shiftId AND s.paymentMethod = :paymentMethod
+            """)
+    BigDecimal sumNonCashAmountByShiftAndPaymentMethod(
+            @Param("shiftId") UUID shiftId,
+            @Param("paymentMethod") PaymentMethod paymentMethod);
+
+    @Query("""
+            SELECT COALESCE(SUM(s.total - s.cashAmount), 0) FROM Sale s
+            WHERE s.shift.cashRegister.id = :cashRegisterId AND s.paymentMethod = :paymentMethod
+            """)
+    BigDecimal sumNonCashAmountByCashRegisterAndPaymentMethod(
+            @Param("cashRegisterId") UUID cashRegisterId,
+            @Param("paymentMethod") PaymentMethod paymentMethod);
+
     @Query("SELECT COUNT(s) FROM Sale s WHERE s.shift.id = :shiftId")
     long countByShiftId(@Param("shiftId") UUID shiftId);
 

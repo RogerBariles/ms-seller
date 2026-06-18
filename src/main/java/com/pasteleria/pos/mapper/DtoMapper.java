@@ -121,6 +121,7 @@ public final class DtoMapper {
                 sale.getSubtotal(),
                 sale.getDiscountTotal(),
                 sale.getTotal(),
+                sale.getCashAmount(),
                 sale.getTotalDiscountType(),
                 sale.getTotalDiscountValue(),
                 costTotal,
