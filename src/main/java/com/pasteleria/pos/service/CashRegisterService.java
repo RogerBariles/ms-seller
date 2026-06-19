@@ -6,6 +6,7 @@ import com.pasteleria.pos.domain.enums.CashRegisterStatus;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
+import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.dto.PaymentTotalsResponse;
@@ -38,6 +39,7 @@ public class CashRegisterService {
     private final SaleRepository saleRepository;
     private final UserService userService;
     private final CloseReportBuilder closeReportBuilder;
+    private final CloseReportService closeReportService;
     private final ShiftCashMovementService cashMovementService;
 
     public CashRegisterService(
@@ -46,12 +48,14 @@ public class CashRegisterService {
             SaleRepository saleRepository,
             UserService userService,
             CloseReportBuilder closeReportBuilder,
+            CloseReportService closeReportService,
             ShiftCashMovementService cashMovementService) {
         this.cashRegisterRepository = cashRegisterRepository;
         this.shiftRepository = shiftRepository;
         this.saleRepository = saleRepository;
         this.userService = userService;
         this.closeReportBuilder = closeReportBuilder;
+        this.closeReportService = closeReportService;
         this.cashMovementService = cashMovementService;
     }
 
@@ -66,6 +70,18 @@ public class CashRegisterService {
         return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(today()).stream()
                 .map(DtoMapper::toCashRegisterResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CashRegisterSummaryResponse> getCashRegistersByDate(LocalDate date) {
+        return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(date).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CloseReportResponse getCashRegisterReport(UUID id) {
+        return closeReportService.buildCashRegisterReport(id);
     }
 
     @Transactional
@@ -109,38 +125,22 @@ public class CashRegisterService {
         cashRegister.setClosedAt(closedAt);
         cashRegisterRepository.save(cashRegister);
 
-        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
-        long salesCount = saleRepository.countByCashRegisterId(cashRegister.getId());
-        BigDecimal totalSales = CloseReportBuilder.totalAmount(paymentTotals);
-        BigDecimal cashIncome = cashMovementService.sumIncomeByCashRegister(cashRegister.getId());
-        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawalByCashRegister(cashRegister.getId());
-        List<ShiftCashMovementResponse> movements =
-                cashMovementService.listMovementsByCashRegister(cashRegister.getId());
-        BigDecimal finalCash = cashMovementService.expectedFinalCashForCashRegister(
-                cashRegister.getId(),
-                cashRegister.getInitialCash(),
-                paymentTotals.cash());
+        return closeReportService.buildCashRegisterReport(cashRegister);
+    }
 
-        return new CloseReportResponse(
-                "CASH_REGISTER",
-                cashRegister.getOpenedAt(),
+    private CashRegisterSummaryResponse toSummary(CashRegister cashRegister) {
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
+        return new CashRegisterSummaryResponse(
+                cashRegister.getId(),
+                cashRegister.getBusinessDate(),
+                cashRegister.getStatus(),
                 cashRegister.getOpenedBy().getName(),
+                cashRegister.getClosedBy() != null ? cashRegister.getClosedBy().getName() : null,
+                cashRegister.getOpenedAt(),
+                cashRegister.getClosedAt(),
                 cashRegister.getInitialCash(),
-                closedAt,
-                user.getName(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                cashRegister.getInitialCash(),
-                finalCash,
-                salesCount,
-                totalSales,
-                paymentTotals,
-                movements,
-                cashIncome,
-                cashWithdrawal);
+                saleRepository.countByCashRegisterId(cashRegister.getId()),
+                CloseReportBuilder.totalAmount(paymentTotals));
     }
 
     private CashRegisterActiveResponse toActiveResponse(CashRegister cashRegister) {
