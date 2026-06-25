@@ -35,25 +35,23 @@ public class CloseReportBuilder {
 
     private PaymentTotalsResponse buildTotals(UUID id, boolean byShift) {
         return new PaymentTotalsResponse(
-                sum(id, byShift, PaymentMethod.EFECTIVO),
-                sum(id, byShift, PaymentMethod.TARJETA),
-                sum(id, byShift, PaymentMethod.TRANSFERENCIA),
-                sum(id, byShift, PaymentMethod.PEDIDOSYA),
-                sum(id, byShift, PaymentMethod.DEBITO),
-                sum(id, byShift, PaymentMethod.QR));
+                cashTotal(id, byShift),
+                nonCashTotal(id, byShift, PaymentMethod.TARJETA),
+                nonCashTotal(id, byShift, PaymentMethod.TRANSFERENCIA),
+                nonCashTotal(id, byShift, PaymentMethod.PEDIDOSYA),
+                nonCashTotal(id, byShift, PaymentMethod.DEBITO),
+                nonCashTotal(id, byShift, PaymentMethod.QR));
     }
 
-    private BigDecimal sum(UUID id, boolean byShift, PaymentMethod method) {
+    private BigDecimal cashTotal(UUID id, boolean byShift) {
         return byShift
-                ? saleRepository.sumTotalByShiftAndPaymentMethod(id, method)
-                : saleRepository.sumTotalByCashRegisterAndPaymentMethod(id, method);
+                ? saleRepository.sumCashAmountByShift(id)
+                : saleRepository.sumCashAmountByCashRegister(id);
     }
 
-    private BigDecimal sumNonCashByShift(UUID shiftId, PaymentMethod method) {
-        return saleRepository.sumNonCashAmountByShiftAndPaymentMethod(shiftId, method);
-    }
-
-    private BigDecimal sumNonCashByCashRegister(UUID cashRegisterId, PaymentMethod method) {
-        return saleRepository.sumNonCashAmountByCashRegisterAndPaymentMethod(cashRegisterId, method);
+    private BigDecimal nonCashTotal(UUID id, boolean byShift, PaymentMethod method) {
+        return byShift
+                ? saleRepository.sumNonCashAmountByShiftAndPaymentMethod(id, method)
+                : saleRepository.sumNonCashAmountByCashRegisterAndPaymentMethod(id, method);
     }
 }
