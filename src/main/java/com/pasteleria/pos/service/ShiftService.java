@@ -11,6 +11,7 @@ import com.pasteleria.pos.dto.ShiftActiveResponse;
 import com.pasteleria.pos.dto.ShiftCashMovementRequest;
 import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
+import com.pasteleria.pos.dto.ShiftSummaryResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.SaleRepository;
@@ -18,6 +19,7 @@ import com.pasteleria.pos.repository.ShiftRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -37,6 +39,7 @@ public class ShiftService {
     private final SaleRepository saleRepository;
     private final UserService userService;
     private final CloseReportBuilder closeReportBuilder;
+    private final CloseReportService closeReportService;
     private final ShiftCashMovementService cashMovementService;
 
     public ShiftService(
@@ -45,12 +48,14 @@ public class ShiftService {
             SaleRepository saleRepository,
             UserService userService,
             CloseReportBuilder closeReportBuilder,
+            CloseReportService closeReportService,
             ShiftCashMovementService cashMovementService) {
         this.shiftRepository = shiftRepository;
         this.cashRegisterService = cashRegisterService;
         this.saleRepository = saleRepository;
         this.userService = userService;
         this.closeReportBuilder = closeReportBuilder;
+        this.closeReportService = closeReportService;
         this.cashMovementService = cashMovementService;
     }
 
@@ -87,6 +92,18 @@ public class ShiftService {
         return cashMovementService.addMovement(shiftId, request);
     }
 
+    @Transactional(readOnly = true)
+    public List<ShiftSummaryResponse> getShiftsByDate(LocalDate date) {
+        return shiftRepository.findByCashRegisterBusinessDateDesc(date).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CloseReportResponse getShiftReport(UUID id) {
+        return closeReportService.buildShiftReport(id);
+    }
+
     @Transactional
     public CloseReportResponse closeShift(UUID id) {
         UserPrincipal principal = SecurityUtils.currentUser();
@@ -103,43 +120,30 @@ public class ShiftService {
 
         User closedBy = userService.getUserEntity(principal.getId());
         OffsetDateTime closedAt = OffsetDateTime.now(ZONE);
-        CashRegister cashRegister = shift.getCashRegister();
         PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByShift(shift.getId());
         long salesCount = saleRepository.countByShiftId(shift.getId());
-        BigDecimal totalSales = CloseReportBuilder.totalAmount(paymentTotals);
-        BigDecimal cashSales = paymentTotals.cash();
-        BigDecimal cashIncome = cashMovementService.sumIncome(shift.getId());
-        BigDecimal cashWithdrawal = cashMovementService.sumWithdrawal(shift.getId());
-        List<ShiftCashMovementResponse> movements = cashMovementService.listMovements(shift.getId());
-        BigDecimal finalCash = cashMovementService.expectedFinalCash(
-                shift.getId(), shift.getInitialCash(), cashSales);
 
-        shift.setCashSalesTotal(cashSales);
+        shift.setCashSalesTotal(paymentTotals.cash());
         shift.setSalesCount((int) salesCount);
         shift.setStatus(ShiftStatus.CLOSED);
         shift.setEndedAt(closedAt);
         shiftRepository.save(shift);
 
-        return new CloseReportResponse(
-                "SHIFT",
-                cashRegister.getOpenedAt(),
-                cashRegister.getOpenedBy().getName(),
-                cashRegister.getInitialCash(),
-                null,
-                null,
-                shift.getStartedAt(),
+        return closeReportService.buildShiftReport(shift, closedBy.getName());
+    }
+
+    private ShiftSummaryResponse toSummary(Shift shift) {
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByShift(shift.getId());
+        return new ShiftSummaryResponse(
+                shift.getId(),
+                shift.getCashRegister().getId(),
                 shift.getSeller().getName(),
+                shift.getStatus(),
+                shift.getStartedAt(),
+                shift.getEndedAt(),
                 shift.getInitialCash(),
-                closedAt,
-                closedBy.getName(),
-                shift.getInitialCash(),
-                finalCash,
-                salesCount,
-                totalSales,
-                paymentTotals,
-                movements,
-                cashIncome,
-                cashWithdrawal);
+                saleRepository.countByShiftId(shift.getId()),
+                CloseReportBuilder.totalAmount(paymentTotals));
     }
 
     public Shift getRequiredActiveShiftForSeller(UUID sellerId) {

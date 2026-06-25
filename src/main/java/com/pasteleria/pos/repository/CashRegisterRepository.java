@@ -25,6 +25,7 @@ public interface CashRegisterRepository extends JpaRepository<CashRegister, UUID
     @Query("""
             SELECT cr FROM CashRegister cr
             JOIN FETCH cr.openedBy
+            LEFT JOIN FETCH cr.closedBy
             WHERE cr.businessDate = :businessDate
             ORDER BY cr.openedAt DESC
             """)

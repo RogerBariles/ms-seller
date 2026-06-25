@@ -5,6 +5,9 @@ import java.math.BigDecimal;
 public record PaymentTotalsResponse(
         BigDecimal cash,
         BigDecimal card,
-        BigDecimal transfer
+        BigDecimal transfer,
+        BigDecimal pedidosYa,
+        BigDecimal debito,
+        BigDecimal qr
 ) {
 }

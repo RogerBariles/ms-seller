@@ -2,6 +2,7 @@ package com.pasteleria.pos.repository;
 
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,4 +47,13 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             WHERE s.id = :id
             """)
     Optional<Shift> findByIdForClose(@Param("id") UUID id);
+
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            JOIN FETCH s.cashRegister cr
+            WHERE cr.businessDate = :businessDate
+            ORDER BY s.startedAt DESC
+            """)
+    List<Shift> findByCashRegisterBusinessDateDesc(@Param("businessDate") LocalDate businessDate);
 }

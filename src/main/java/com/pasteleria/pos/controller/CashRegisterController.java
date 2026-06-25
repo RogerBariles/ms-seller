@@ -2,12 +2,15 @@ package com.pasteleria.pos.controller;
 
 import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
+import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.service.CashRegisterService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -38,6 +42,17 @@ public class CashRegisterController {
     @GetMapping("/today/history")
     public List<CashRegisterResponse> getTodayHistory() {
         return cashRegisterService.getTodayCashRegisterHistory();
+    }
+
+    @GetMapping("/by-date")
+    public List<CashRegisterSummaryResponse> getByDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return cashRegisterService.getCashRegistersByDate(date);
+    }
+
+    @GetMapping("/{id}/report")
+    public CloseReportResponse getReport(@PathVariable UUID id) {
+        return cashRegisterService.getCashRegisterReport(id);
     }
 
     @PostMapping("/open")
