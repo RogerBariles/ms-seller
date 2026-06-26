@@ -76,7 +76,12 @@ public class ContabilidadService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
+        OffsetDateTime expenseDate = request.date() != null
+            ? OffsetDateTime.of(request.date(), LocalTime.now(ZONE), ZONE.getRules().getOffset(request.date().atStartOfDay()))
+            : OffsetDateTime.now(ZONE);
+
         Expense expense = new Expense(UUID.randomUUID(), request.detail().trim(), request.amount(), user);
+        expense.setCreatedAt(expenseDate);
         expense = expenseRepository.save(expense);
 
         return new ExpenseResponse(
