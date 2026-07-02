@@ -12,10 +12,13 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     List<Product> findByActiveTrueOrderByNameAsc();
 
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.company ORDER BY p.name")
+    List<Product> findAllWithCompany();
+
     List<Product> findAllByOrderByNameAsc();
 
     @Query("""
-            SELECT p FROM Product p
+            SELECT p FROM Product p LEFT JOIN FETCH p.company
             WHERE p.active = true
               AND (:pattern IS NULL OR LOWER(p.name) LIKE :pattern)
               AND (:category IS NULL OR p.category = :category)
@@ -24,6 +27,19 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> search(
             @Param("pattern") String pattern,
             @Param("category") ProductCategory category);
+
+    @Query("""
+            SELECT p FROM Product p LEFT JOIN FETCH p.company
+            WHERE p.active = true
+              AND (:pattern IS NULL OR LOWER(p.name) LIKE :pattern)
+              AND (:category IS NULL OR p.category = :category)
+              AND (p.company.id = :companyId OR p.company.id IS NULL)
+            ORDER BY p.name ASC
+            """)
+    List<Product> searchByCompany(
+            @Param("pattern") String pattern,
+            @Param("category") ProductCategory category,
+            @Param("companyId") UUID companyId);
 
     List<Product> findByActiveTrue();
 }

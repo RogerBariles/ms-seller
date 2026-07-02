@@ -79,6 +79,7 @@ public final class DtoMapper {
     }
 
     public static ProductResponse toProductResponse(Product product) {
+        Company company = product.getCompany();
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -86,7 +87,9 @@ public final class DtoMapper {
                 product.getPrice(),
                 product.getPurchasePrice(),
                 product.isActive(),
-                product.getUpdatedAt());
+                product.getUpdatedAt(),
+                company != null ? company.getId() : null,
+                company != null ? company.getName() : null);
     }
 
     public static ProductPriceAuditResponse toAuditResponse(ProductPriceAudit audit) {

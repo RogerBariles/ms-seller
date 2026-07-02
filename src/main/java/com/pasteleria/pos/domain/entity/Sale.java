@@ -65,6 +65,10 @@ public class Sale {
     @Column(nullable = false)
     private boolean birthday = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
 
@@ -170,6 +174,14 @@ public class Sale {
 
     public void setBirthday(boolean birthday) {
         this.birthday = birthday;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 
     public List<SaleItem> getItems() {

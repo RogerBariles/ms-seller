@@ -12,6 +12,8 @@ public record ProductResponse(
         BigDecimal price,
         BigDecimal purchasePrice,
         boolean active,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        UUID companyId,
+        String companyName
 ) {
 }

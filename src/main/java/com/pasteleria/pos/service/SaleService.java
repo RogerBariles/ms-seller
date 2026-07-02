@@ -1,6 +1,7 @@
 package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.config.AppConstants;
+import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Product;
 import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.SaleItem;
@@ -66,13 +67,14 @@ public class SaleService {
         sale.setId(UUID.randomUUID());
         sale.setShift(shift);
         sale.setSeller(seller);
+        sale.setCompany(seller.getCompany());
         sale.setPaymentMethod(request.paymentMethod());
         sale.setInstallments(request.paymentMethod() == PaymentMethod.TARJETA ? request.installments() : null);
         sale.setTotalDiscountType(totalDiscountType);
         sale.setTotalDiscountValue(totalDiscountValue);
         sale.setBirthday(false);
 
-        List<SaleItem> items = buildItems(sale, request.items());
+        List<SaleItem> items = buildItems(sale, seller, request.items());
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal lineDiscountTotal = BigDecimal.ZERO;
         for (SaleItem item : items) {
@@ -113,6 +115,7 @@ public class SaleService {
         sale.setId(UUID.randomUUID());
         sale.setShift(shift);
         sale.setSeller(celebrant);
+        sale.setCompany(celebrant.getCompany());
         sale.setPaymentMethod(PaymentMethod.EFECTIVO);
         sale.setBirthday(true);
         sale.setSubtotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
@@ -142,7 +145,7 @@ public class SaleService {
         return DtoMapper.toSaleResponse(sale);
     }
 
-    private List<SaleItem> buildItems(Sale sale, List<SaleItemRequest> itemRequests) {
+    private List<SaleItem> buildItems(Sale sale, User seller, List<SaleItemRequest> itemRequests) {
         List<SaleItem> items = new ArrayList<>();
 
         for (SaleItemRequest itemRequest : itemRequests) {
@@ -150,6 +153,10 @@ public class SaleService {
             BigDecimal itemDiscountValue = normalizeDiscountValue(itemRequest.discountType(), itemRequest.discountValue());
             DiscountCalculator.validateDiscount(itemDiscountType, itemDiscountValue);
             Product product = productService.getActiveProduct(itemRequest.productId());
+
+            // Company validation: product.company must match seller.company (skip when null)
+            validateProductCompany(product, seller);
+
             BigDecimal lineSubtotal = product.getPrice()
                     .multiply(BigDecimal.valueOf(itemRequest.quantity()))
                     .setScale(2, RoundingMode.HALF_UP);
@@ -195,5 +202,17 @@ public class SaleService {
             return null;
         }
         return value;
+    }
+
+    private void validateProductCompany(Product product, User seller) {
+        if (product.getCompany() == null) {
+            return; // Skip validation for null-company products (e.g. birthday product)
+        }
+        Company sellerCompany = seller.getCompany();
+        if (sellerCompany == null || !product.getCompany().getId().equals(sellerCompany.getId())) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "El producto " + product.getName() + " no pertenece a la empresa de la vendedora");
+        }
     }
 }

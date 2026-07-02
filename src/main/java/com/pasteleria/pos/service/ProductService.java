@@ -1,12 +1,14 @@
 package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.config.AppConstants;
+import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Product;
 import com.pasteleria.pos.domain.entity.ProductPriceAudit;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.PriceChangeType;
 import com.pasteleria.pos.domain.enums.PriceField;
 import com.pasteleria.pos.domain.enums.ProductCategory;
+import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.BulkPriceIncreaseRequest;
 import com.pasteleria.pos.dto.ProductPriceAuditResponse;
 import com.pasteleria.pos.dto.ProductRequest;
@@ -34,20 +36,23 @@ public class ProductService {
     private final ProductPriceAuditRepository auditRepository;
     private final SaleItemRepository saleItemRepository;
     private final UserService userService;
+    private final CompanyService companyService;
 
     public ProductService(
             ProductRepository productRepository,
             ProductPriceAuditRepository auditRepository,
             SaleItemRepository saleItemRepository,
-            UserService userService) {
+            UserService userService,
+            CompanyService companyService) {
         this.productRepository = productRepository;
         this.auditRepository = auditRepository;
         this.saleItemRepository = saleItemRepository;
         this.userService = userService;
+        this.companyService = companyService;
     }
 
     public List<ProductResponse> listProducts() {
-        return productRepository.findAllByOrderByNameAsc().stream()
+        return productRepository.findAllWithCompany().stream()
                 .map(DtoMapper::toProductResponse)
                 .toList();
     }
@@ -55,6 +60,18 @@ public class ProductService {
     public List<ProductResponse> search(String q, ProductCategory category) {
         String query = (q == null || q.isBlank()) ? null : q.trim().toLowerCase();
         String pattern = query == null ? null : "%" + query + "%";
+
+        UserPrincipal principal = SecurityUtils.currentUser();
+        if (principal.getRole() == UserRole.SELLER) {
+            User user = userService.getUserEntity(principal.getId());
+            Company userCompany = user.getCompany();
+            UUID companyId = userCompany != null ? userCompany.getId() : null;
+            if (companyId != null) {
+                return productRepository.searchByCompany(pattern, category, companyId).stream()
+                        .map(DtoMapper::toProductResponse)
+                        .toList();
+            }
+        }
         return productRepository.search(pattern, category).stream()
                 .map(DtoMapper::toProductResponse)
                 .toList();
@@ -69,6 +86,7 @@ public class ProductService {
         product.setPrice(request.price());
         product.setPurchasePrice(request.purchasePrice());
         product.setActive(request.active());
+        product.setCompany(resolveCompany(request.companyId()));
         return DtoMapper.toProductResponse(productRepository.save(product));
     }
 
@@ -94,6 +112,7 @@ public class ProductService {
         product.setPrice(request.price());
         product.setPurchasePrice(request.purchasePrice());
         product.setActive(request.active());
+        product.setCompany(resolveCompany(request.companyId()));
         product.setUpdatedAt(OffsetDateTime.now());
         return DtoMapper.toProductResponse(productRepository.save(product));
     }
@@ -141,6 +160,14 @@ public class ProductService {
     public Product getProductEntity(UUID id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Producto no encontrado"));
+    }
+
+    private Company resolveCompany(UUID companyId) {
+        Company company = companyService.getCompanyEntity(companyId);
+        if (!company.isActive()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La empresa seleccionada no está activa");
+        }
+        return company;
     }
 
     @Transactional
