@@ -17,18 +17,78 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             JOIN FETCH s.seller
             JOIN FETCH s.cashRegister
             WHERE s.seller.id = :sellerId AND s.status = :status
+              AND s.company.id = :companyId
             """)
     Optional<Shift> findBySellerIdAndStatus(
             @Param("sellerId") UUID sellerId,
-            @Param("status") ShiftStatus status);
+            @Param("status") ShiftStatus status,
+            @Param("companyId") UUID companyId);
 
-    List<Shift> findByCashRegisterIdOrderByStartedAtAsc(UUID cashRegisterId);
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            JOIN FETCH s.cashRegister
+            WHERE s.seller.id = :sellerId AND s.status = :status
+              AND s.company.id = :companyId
+            """)
+    List<Shift> findBySellerIdAndStatusList(
+            @Param("sellerId") UUID sellerId,
+            @Param("status") ShiftStatus status,
+            @Param("companyId") UUID companyId);
 
-    boolean existsByCashRegisterId(UUID cashRegisterId);
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.cashRegister cr
+            WHERE cr.id = :cashRegisterId
+              AND s.company.id = :companyId
+            ORDER BY s.startedAt ASC
+            """)
+    List<Shift> findByCashRegisterIdOrderByStartedAtAsc(
+            @Param("cashRegisterId") UUID cashRegisterId,
+            @Param("companyId") UUID companyId);
 
-    boolean existsByCashRegisterIdAndStatus(UUID cashRegisterId, ShiftStatus status);
+    @Query("""
+            SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+            FROM Shift s
+            WHERE s.cashRegister.id = :cashRegisterId
+              AND s.company.id = :companyId
+            """)
+    boolean existsByCashRegisterId(
+            @Param("cashRegisterId") UUID cashRegisterId,
+            @Param("companyId") UUID companyId);
 
-    Optional<Shift> findFirstByStatusOrderByStartedAtAsc(ShiftStatus status);
+    @Query("""
+            SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+            FROM Shift s
+            WHERE s.cashRegister.id = :cashRegisterId AND s.status = :status
+              AND s.company.id = :companyId
+            """)
+    boolean existsByCashRegisterIdAndStatus(
+            @Param("cashRegisterId") UUID cashRegisterId,
+            @Param("status") ShiftStatus status,
+            @Param("companyId") UUID companyId);
+
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            JOIN FETCH s.cashRegister
+            WHERE s.status = :status
+              AND s.company.id = :companyId
+            ORDER BY s.startedAt ASC
+            """)
+    Optional<Shift> findFirstByStatusOrderByStartedAtAsc(
+            @Param("status") ShiftStatus status,
+            @Param("companyId") UUID companyId);
+
+    // Un-scoped version for background tasks (BirthdaySaleScheduler) with no security context
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            JOIN FETCH s.cashRegister
+            WHERE s.status = :status
+            ORDER BY s.startedAt ASC
+            """)
+    Optional<Shift> findFirstByStatusOrderByStartedAtAscUnscoped(@Param("status") ShiftStatus status);
 
     @Query("""
             SELECT s FROM Shift s
@@ -53,7 +113,17 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             JOIN FETCH s.seller
             JOIN FETCH s.cashRegister cr
             WHERE cr.businessDate = :businessDate
+              AND s.company.id = :companyId
             ORDER BY s.startedAt DESC
             """)
-    List<Shift> findByCashRegisterBusinessDateDesc(@Param("businessDate") LocalDate businessDate);
+    List<Shift> findByCashRegisterBusinessDateDesc(
+            @Param("businessDate") LocalDate businessDate,
+            @Param("companyId") UUID companyId);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+            FROM Shift s
+            WHERE s.id = :id AND s.company.id = :companyId
+            """)
+    boolean existsByIdAndCompanyId(@Param("id") UUID id, @Param("companyId") UUID companyId);
 }

@@ -16,6 +16,8 @@ public record CashRegisterSummaryResponse(
         OffsetDateTime closedAt,
         BigDecimal initialCash,
         long salesCount,
-        BigDecimal totalSalesAmount
+        BigDecimal totalSalesAmount,
+        UUID companyId,
+        String companyName
 ) {
 }

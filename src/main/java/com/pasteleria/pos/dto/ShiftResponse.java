@@ -13,6 +13,8 @@ public record ShiftResponse(
         BigDecimal initialCash,
         ShiftStatus status,
         OffsetDateTime startedAt,
-        OffsetDateTime endedAt
+        OffsetDateTime endedAt,
+        UUID companyId,
+        String companyName
 ) {
 }

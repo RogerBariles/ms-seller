@@ -16,6 +16,7 @@ public class UserPrincipal implements UserDetails {
     private final String password;
     private final UserRole role;
     private final boolean active;
+    private final UUID companyId;
 
     public UserPrincipal(User user) {
         this.id = user.getId();
@@ -23,6 +24,7 @@ public class UserPrincipal implements UserDetails {
         this.password = user.getPasswordHash();
         this.role = user.getRole();
         this.active = user.isActive();
+        this.companyId = user.getCompany() != null ? user.getCompany().getId() : null;
     }
 
     public UUID getId() {
@@ -31,6 +33,10 @@ public class UserPrincipal implements UserDetails {
 
     public UserRole getRole() {
         return role;
+    }
+
+    public UUID getCompanyId() {
+        return companyId;
     }
 
     @Override

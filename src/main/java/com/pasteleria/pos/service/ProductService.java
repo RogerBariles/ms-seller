@@ -52,9 +52,16 @@ public class ProductService {
     }
 
     public List<ProductResponse> listProducts() {
-        return productRepository.findAllWithCompany().stream()
-                .map(DtoMapper::toProductResponse)
-                .toList();
+        UserPrincipal principal = SecurityUtils.currentUser();
+        User user = userService.getUserEntity(principal.getId());
+        Company userCompany = user.getCompany();
+        UUID companyId = userCompany != null ? userCompany.getId() : null;
+        if (companyId != null) {
+            return productRepository.findAllWithCompanyAndFilter(companyId).stream()
+                    .map(DtoMapper::toProductResponse)
+                    .toList();
+        }
+        return List.of();
     }
 
     public List<ProductResponse> search(String q, ProductCategory category) {

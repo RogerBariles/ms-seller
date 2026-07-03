@@ -14,6 +14,8 @@ public record ShiftSummaryResponse(
         OffsetDateTime endedAt,
         BigDecimal initialCash,
         long salesCount,
-        BigDecimal totalSalesAmount
+        BigDecimal totalSalesAmount,
+        UUID companyId,
+        String companyName
 ) {
 }

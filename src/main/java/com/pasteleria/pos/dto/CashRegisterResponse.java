@@ -14,6 +14,8 @@ public record CashRegisterResponse(
         UUID openedById,
         String openedByName,
         OffsetDateTime openedAt,
-        OffsetDateTime closedAt
+        OffsetDateTime closedAt,
+        UUID companyId,
+        String companyName
 ) {
 }

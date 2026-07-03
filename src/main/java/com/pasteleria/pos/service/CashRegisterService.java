@@ -1,6 +1,7 @@
 package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.domain.entity.CashRegister;
+import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.CashRegisterStatus;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
@@ -67,14 +68,16 @@ public class CashRegisterService {
 
     @Transactional(readOnly = true)
     public List<CashRegisterResponse> getTodayCashRegisterHistory() {
-        return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(today()).stream()
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(today(), companyId).stream()
                 .map(DtoMapper::toCashRegisterResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<CashRegisterSummaryResponse> getCashRegistersByDate(LocalDate date) {
-        return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(date).stream()
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        return cashRegisterRepository.findAllByBusinessDateOrderByOpenedAtDesc(date, companyId).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -87,14 +90,21 @@ public class CashRegisterService {
     @Transactional
     public CashRegisterResponse openCashRegister(OpenCashRegisterRequest request) {
         LocalDate today = today();
-        if (cashRegisterRepository.existsByBusinessDateAndStatus(today, CashRegisterStatus.OPEN)) {
+        UserPrincipal principal = SecurityUtils.currentUser();
+        UUID companyId = principal.getCompanyId();
+        if (companyId == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "El usuario debe estar asociado a una empresa para abrir una caja");
+        }
+
+        if (cashRegisterRepository.existsByBusinessDateAndStatus(today, CashRegisterStatus.OPEN, companyId)) {
             throw new ApiException(
                     HttpStatus.CONFLICT,
                     "Ya hay una caja abierta. Cierre la caja actual antes de abrir otra.");
         }
 
-        UserPrincipal principal = SecurityUtils.currentUser();
         User user = userService.getUserEntity(principal.getId());
+        Company company = user.getCompany();
 
         CashRegister cashRegister = new CashRegister();
         cashRegister.setId(UUID.randomUUID());
@@ -102,22 +112,30 @@ public class CashRegisterService {
         cashRegister.setInitialCash(request.initialCash());
         cashRegister.setStatus(CashRegisterStatus.OPEN);
         cashRegister.setOpenedBy(user);
+        cashRegister.setCompany(company);
         cashRegister.setOpenedAt(OffsetDateTime.now(ZONE));
         return DtoMapper.toCashRegisterResponse(cashRegisterRepository.save(cashRegister));
     }
 
     @Transactional
     public CloseReportResponse closeCashRegister(UUID id) {
+        UserPrincipal principal = SecurityUtils.currentUser();
+        UUID companyId = principal.getCompanyId();
+
+        // Validate ownership before proceeding
+        if (!cashRegisterRepository.existsByIdAndCompanyId(id, companyId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Caja no encontrada");
+        }
+
         CashRegister cashRegister = cashRegisterRepository.findByIdWithUsers(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Caja no encontrada"));
         if (cashRegister.getStatus() == CashRegisterStatus.CLOSED) {
             throw new ApiException(HttpStatus.CONFLICT, "La caja ya está cerrada");
         }
-        if (shiftRepository.existsByCashRegisterIdAndStatus(cashRegister.getId(), ShiftStatus.OPEN)) {
+        if (shiftRepository.existsByCashRegisterIdAndStatus(cashRegister.getId(), ShiftStatus.OPEN, companyId)) {
             throw new ApiException(HttpStatus.CONFLICT, "Hay turnos abiertos. Cierre todos los turnos primero");
         }
 
-        UserPrincipal principal = SecurityUtils.currentUser();
         User user = userService.getUserEntity(principal.getId());
         OffsetDateTime closedAt = OffsetDateTime.now(ZONE);
         cashRegister.setStatus(CashRegisterStatus.CLOSED);
@@ -130,6 +148,7 @@ public class CashRegisterService {
 
     private CashRegisterSummaryResponse toSummary(CashRegister cashRegister) {
         PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
+        Company company = cashRegister.getCompany();
         return new CashRegisterSummaryResponse(
                 cashRegister.getId(),
                 cashRegister.getBusinessDate(),
@@ -140,7 +159,9 @@ public class CashRegisterService {
                 cashRegister.getClosedAt(),
                 cashRegister.getInitialCash(),
                 saleRepository.countByCashRegisterId(cashRegister.getId()),
-                CloseReportBuilder.totalAmount(paymentTotals));
+                CloseReportBuilder.totalAmount(paymentTotals),
+                company != null ? company.getId() : null,
+                company != null ? company.getName() : null);
     }
 
     private CashRegisterActiveResponse toActiveResponse(CashRegister cashRegister) {
@@ -167,7 +188,8 @@ public class CashRegisterService {
 
     @Transactional(readOnly = true)
     public BigDecimal initialCashForNewShift(CashRegister cashRegister) {
-        if (!shiftRepository.existsByCashRegisterId(cashRegister.getId())) {
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        if (!shiftRepository.existsByCashRegisterId(cashRegister.getId(), companyId)) {
             return cashRegister.getInitialCash();
         }
         PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
@@ -178,8 +200,9 @@ public class CashRegisterService {
     }
 
     private Optional<CashRegister> findOpenCashRegisterForToday() {
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
         return cashRegisterRepository.findFirstByBusinessDateAndStatusOrderByOpenedAtDesc(
-                today(), CashRegisterStatus.OPEN);
+                today(), CashRegisterStatus.OPEN, companyId);
     }
 
     private LocalDate today() {

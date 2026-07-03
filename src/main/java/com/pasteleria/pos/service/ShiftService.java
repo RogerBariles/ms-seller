@@ -1,6 +1,7 @@
 package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.domain.entity.CashRegister;
+import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
@@ -62,29 +63,39 @@ public class ShiftService {
     @Transactional(readOnly = true)
     public Optional<ShiftActiveResponse> getActiveShift() {
         UserPrincipal principal = SecurityUtils.currentUser();
-        return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN)
+        return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, principal.getCompanyId())
                 .map(this::toActiveResponse);
     }
 
     @Transactional
     public ShiftResponse startShift() {
         UserPrincipal principal = SecurityUtils.currentUser();
-        shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN)
+        UUID companyId = principal.getCompanyId();
+        if (companyId == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "El usuario debe estar asociado a una empresa para iniciar un turno");
+        }
+
+        shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
                 .ifPresent(shift -> {
                     throw new ApiException(HttpStatus.CONFLICT, "Ya tiene un turno abierto");
                 });
 
         CashRegister cashRegister = cashRegisterService.getOpenCashRegisterForToday();
         User seller = userService.getUserEntity(principal.getId());
+        Company company = new Company();
+        company.setId(companyId);
 
         Shift shift = new Shift();
         shift.setId(UUID.randomUUID());
         shift.setCashRegister(cashRegister);
         shift.setSeller(seller);
+        shift.setCompany(company);
         shift.setInitialCash(cashRegisterService.initialCashForNewShift(cashRegister));
         shift.setStatus(ShiftStatus.OPEN);
         shift.setStartedAt(OffsetDateTime.now(ZONE));
-        return DtoMapper.toShiftResponse(shiftRepository.save(shift));
+        shift = shiftRepository.save(shift);
+        return DtoMapper.toShiftResponse(shift);
     }
 
     @Transactional
@@ -94,7 +105,8 @@ public class ShiftService {
 
     @Transactional(readOnly = true)
     public List<ShiftSummaryResponse> getShiftsByDate(LocalDate date) {
-        return shiftRepository.findByCashRegisterBusinessDateDesc(date).stream()
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        return shiftRepository.findByCashRegisterBusinessDateDesc(date, companyId).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -107,6 +119,13 @@ public class ShiftService {
     @Transactional
     public CloseReportResponse closeShift(UUID id) {
         UserPrincipal principal = SecurityUtils.currentUser();
+        UUID companyId = principal.getCompanyId();
+
+        // Validate ownership before proceeding
+        if (!shiftRepository.existsByIdAndCompanyId(id, companyId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Turno no encontrado");
+        }
+
         Shift shift = shiftRepository.findByIdForClose(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Turno no encontrado"));
         if (!shift.getSeller().getId().equals(principal.getId())
@@ -134,6 +153,7 @@ public class ShiftService {
 
     private ShiftSummaryResponse toSummary(Shift shift) {
         PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByShift(shift.getId());
+        Company company = shift.getCompany();
         return new ShiftSummaryResponse(
                 shift.getId(),
                 shift.getCashRegister().getId(),
@@ -143,11 +163,15 @@ public class ShiftService {
                 shift.getEndedAt(),
                 shift.getInitialCash(),
                 saleRepository.countByShiftId(shift.getId()),
-                CloseReportBuilder.totalAmount(paymentTotals));
+                CloseReportBuilder.totalAmount(paymentTotals),
+                company != null ? company.getId() : null,
+                company != null ? company.getName() : null);
     }
 
     public Shift getRequiredActiveShiftForSeller(UUID sellerId) {
-        return shiftRepository.findBySellerIdAndStatus(sellerId, ShiftStatus.OPEN)
+        // This is called from SaleService during a sale (user is authenticated)
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        return shiftRepository.findBySellerIdAndStatus(sellerId, ShiftStatus.OPEN, companyId)
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Debe tener caja y turno abiertos para vender"));
     }
 

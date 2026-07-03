@@ -55,7 +55,7 @@ public class BirthdaySaleScheduler {
             return;
         }
 
-        Shift shift = shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN).orElse(null);
+        Shift shift = shiftRepository.findFirstByStatusOrderByStartedAtAscUnscoped(ShiftStatus.OPEN).orElse(null);
         if (shift == null) {
             log.info("Sin turno abierto, se omiten ventas de cumpleaños");
             return;

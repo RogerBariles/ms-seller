@@ -22,6 +22,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.company WHERE u.id = :id")
     Optional<User> findByIdWithCompany(@Param("id") UUID id);
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.company WHERE u.username = :username")
+    Optional<User> findByUsernameWithCompany(@Param("username") String username);
+
     @Query(value = """
             SELECT * FROM users u
             WHERE u.active = TRUE

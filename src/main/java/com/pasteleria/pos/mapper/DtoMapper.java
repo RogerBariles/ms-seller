@@ -45,6 +45,7 @@ public final class DtoMapper {
     }
 
     public static CashRegisterResponse toCashRegisterResponse(CashRegister cashRegister) {
+        Company company = cashRegister.getCompany();
         return new CashRegisterResponse(
                 cashRegister.getId(),
                 cashRegister.getBusinessDate(),
@@ -53,10 +54,13 @@ public final class DtoMapper {
                 cashRegister.getOpenedBy().getId(),
                 cashRegister.getOpenedBy().getName(),
                 cashRegister.getOpenedAt(),
-                cashRegister.getClosedAt());
+                cashRegister.getClosedAt(),
+                company != null ? company.getId() : null,
+                company != null ? company.getName() : null);
     }
 
     public static ShiftResponse toShiftResponse(Shift shift) {
+        Company company = shift.getCompany();
         return new ShiftResponse(
                 shift.getId(),
                 shift.getCashRegister().getId(),
@@ -65,7 +69,9 @@ public final class DtoMapper {
                 shift.getInitialCash(),
                 shift.getStatus(),
                 shift.getStartedAt(),
-                shift.getEndedAt());
+                shift.getEndedAt(),
+                company != null && company.getId() != null ? company.getId() : null,
+                company != null && company.getName() != null ? company.getName() : null);
     }
 
     public static ShiftCashMovementResponse toShiftCashMovementResponse(ShiftCashMovement movement) {

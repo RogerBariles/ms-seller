@@ -1,6 +1,7 @@
 package com.pasteleria.pos.domain.entity;
 
 import com.pasteleria.pos.domain.enums.ShiftStatus;
+import com.pasteleria.pos.domain.entity.Company;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -41,6 +42,10 @@ public class Shift {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ShiftStatus status;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(name = "started_at", nullable = false)
     private OffsetDateTime startedAt;
@@ -118,5 +123,13 @@ public class Shift {
 
     public void setEndedAt(OffsetDateTime endedAt) {
         this.endedAt = endedAt;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 }

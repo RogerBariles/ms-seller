@@ -1,6 +1,7 @@
 package com.pasteleria.pos.domain.entity;
 
 import com.pasteleria.pos.domain.enums.CashRegisterStatus;
+import com.pasteleria.pos.domain.entity.Company;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,6 +40,10 @@ public class CashRegister {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "closed_by")
     private User closedBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(name = "opened_at", nullable = false)
     private OffsetDateTime openedAt;
@@ -108,5 +113,13 @@ public class CashRegister {
 
     public void setClosedAt(OffsetDateTime closedAt) {
         this.closedAt = closedAt;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 }

@@ -58,7 +58,7 @@ public class ShiftController {
     @PostMapping("/start")
     public ShiftResponse start() {
         ShiftResponse shift = shiftService.startShift();
-        birthdaySaleScheduler.processBirthdaysForDate(LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")));
+        //birthdaySaleScheduler.processBirthdaysForDate(LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")));
         return shift;
     }
 
