@@ -83,4 +83,7 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
     @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE s.createdAt >= :from AND s.createdAt <= :to")
     BigDecimal sumSalesBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE s.createdAt >= :from AND s.createdAt <= :to AND s.company.id = :companyId")
+    BigDecimal sumSalesBetweenByCompany(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to, @Param("companyId") UUID companyId);
 }

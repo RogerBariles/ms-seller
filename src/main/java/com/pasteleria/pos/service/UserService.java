@@ -101,20 +101,15 @@ public class UserService {
     }
 
     private Company resolveCompany(UUID companyId, UserRole role) {
-        if (role == UserRole.SELLER) {
-            if (companyId == null) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "La vendedora debe pertenecer a una empresa");
-            }
-            Company company = companyService.getCompanyEntity(companyId);
-            if (!company.isActive()) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "La empresa seleccionada no está activa");
-            }
-            return company;
-        }
         if (companyId == null) {
-            return null;
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "El usuario debe pertenecer a una empresa sin importar el rol");
         }
-        return companyService.getCompanyEntity(companyId);
+        Company company = companyService.getCompanyEntity(companyId);
+        if (!company.isActive()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La empresa seleccionada no está activa");
+        }
+        return company;
     }
 
     private static String normalizeUsername(String username) {

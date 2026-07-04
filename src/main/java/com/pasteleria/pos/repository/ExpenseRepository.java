@@ -17,6 +17,12 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.createdAt >= :from AND e.createdAt <= :to")
     BigDecimal sumExpensesBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
 
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.createdAt >= :from AND e.createdAt <= :to AND e.company.id = :companyId")
+    BigDecimal sumExpensesBetweenByCompany(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to, @Param("companyId") UUID companyId);
+
     @Query("FROM Expense e WHERE e.createdAt >= :from AND e.createdAt <= :to ORDER BY e.createdAt DESC")
     List<Expense> findBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    @Query("FROM Expense e WHERE e.createdAt >= :from AND e.createdAt <= :to AND e.company.id = :companyId ORDER BY e.createdAt DESC")
+    List<Expense> findBetweenByCompany(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to, @Param("companyId") UUID companyId);
 }

@@ -12,6 +12,7 @@ import com.pasteleria.pos.dto.TopStatsResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.SaleRepository;
+import com.pasteleria.pos.security.SecurityUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -55,7 +56,8 @@ public class ReportService {
         OffsetDateTime from = OffsetDateTime.of(fromDate, LocalTime.MIN, ZONE.getRules().getOffset(fromDate.atStartOfDay()));
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, companyId);
+        UUID resolvedCompanyId = resolveCompanyId(companyId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId);
         List<SaleResponse> saleResponses = sales.stream().map(DtoMapper::toSaleResponse).toList();
 
         Map<PaymentMethod, BigDecimal> amountByPaymentMethod = new EnumMap<>(PaymentMethod.class);
@@ -105,7 +107,8 @@ public class ReportService {
         OffsetDateTime from = OffsetDateTime.of(fromDate, LocalTime.MIN, ZONE.getRules().getOffset(fromDate.atStartOfDay()));
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, companyId);
+        UUID resolvedCompanyId = resolveCompanyId(companyId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId);
 
         // Top 10 best-selling products
         Map<String, Long> productQuantityMap = new HashMap<>();
@@ -148,5 +151,12 @@ public class ReportService {
                 .toList();
 
         return new TopStatsResponse(topProducts, topDays, topSellers);
+    }
+
+    private static UUID resolveCompanyId(UUID companyId) {
+        if (companyId != null) {
+            return companyId;
+        }
+        return SecurityUtils.currentUser().getCompanyId();
     }
 }
