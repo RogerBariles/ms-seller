@@ -2,6 +2,7 @@ package com.pasteleria.pos.repository;
 
 import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.ProductCategory;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -66,6 +67,7 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
               AND (:paymentMethod IS NULL OR s.paymentMethod = :paymentMethod)
               AND (:sellerId IS NULL OR s.seller.id = :sellerId)
               AND (:companyId IS NULL OR seller.company.id = :companyId)
+              AND (:category IS NULL OR item.product.category = :category)
             ORDER BY s.createdAt DESC
             """)
     List<Sale> findForReport(
@@ -73,7 +75,8 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
             @Param("to") OffsetDateTime to,
             @Param("paymentMethod") PaymentMethod paymentMethod,
             @Param("sellerId") UUID sellerId,
-            @Param("companyId") UUID companyId);
+            @Param("companyId") UUID companyId,
+            @Param("category") ProductCategory category);
 
     boolean existsBySellerIdAndBirthdayTrueAndCreatedAtBetween(
             UUID sellerId, OffsetDateTime from, OffsetDateTime to);

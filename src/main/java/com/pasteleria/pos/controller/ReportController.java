@@ -1,6 +1,7 @@
 package com.pasteleria.pos.controller;
 
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.ProductCategory;
 import com.pasteleria.pos.dto.SalesReportResponse;
 import com.pasteleria.pos.dto.TopStatsResponse;
 import com.pasteleria.pos.service.ReportService;
@@ -30,13 +31,15 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) PaymentMethod paymentMethod,
             @RequestParam(required = false) UUID sellerId,
-            @RequestParam(required = false) UUID companyId) {
+            @RequestParam(required = false) UUID companyId,
+            @RequestParam(required = false) ProductCategory category) {
         return reportService.getSalesReport(
                 fromDate,
                 toDate,
                 paymentMethod,
                 sellerId,
-                companyId);
+                companyId,
+                category);
     }
 
     @GetMapping("/top-stats")
@@ -45,12 +48,14 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) PaymentMethod paymentMethod,
             @RequestParam(required = false) UUID sellerId,
-            @RequestParam(required = false) UUID companyId) {
+            @RequestParam(required = false) UUID companyId,
+            @RequestParam(required = false) ProductCategory category) {
         return reportService.getTopStats(
                 fromDate,
                 toDate,
                 paymentMethod,
                 sellerId,
-                companyId);
+                companyId,
+                category);
     }
 }

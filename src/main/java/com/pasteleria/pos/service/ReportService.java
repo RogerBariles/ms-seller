@@ -3,6 +3,7 @@ package com.pasteleria.pos.service;
 import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.SaleItem;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.ProductCategory;
 import com.pasteleria.pos.dto.SaleResponse;
 import com.pasteleria.pos.dto.SalesReportResponse;
 import com.pasteleria.pos.dto.TopDayResponse;
@@ -45,7 +46,8 @@ public class ReportService {
             LocalDate toDate,
             PaymentMethod paymentMethod,
             UUID sellerId,
-            UUID companyId) {
+            UUID companyId,
+            ProductCategory category) {
         if (fromDate == null || toDate == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Debe indicar rango de fechas");
         }
@@ -57,7 +59,7 @@ public class ReportService {
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId, category);
         List<SaleResponse> saleResponses = sales.stream().map(DtoMapper::toSaleResponse).toList();
 
         Map<PaymentMethod, BigDecimal> amountByPaymentMethod = new EnumMap<>(PaymentMethod.class);
@@ -96,7 +98,8 @@ public class ReportService {
             LocalDate toDate,
             PaymentMethod paymentMethod,
             UUID sellerId,
-            UUID companyId) {
+            UUID companyId,
+            ProductCategory category) {
         if (fromDate == null || toDate == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Debe indicar rango de fechas");
         }
@@ -108,7 +111,7 @@ public class ReportService {
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId, category);
 
         // Top 10 best-selling products
         Map<String, Long> productQuantityMap = new HashMap<>();
