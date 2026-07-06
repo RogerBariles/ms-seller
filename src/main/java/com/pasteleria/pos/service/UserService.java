@@ -95,7 +95,7 @@ public class UserService {
 
     private void validateRoleAssignment(UserRole role) {
         UserPrincipal current = SecurityUtils.currentUser();
-        if (current.getRole() == UserRole.ADMIN && role == UserRole.SUPER_ADMIN) {
+        if (role == UserRole.SUPER_ADMIN && current.getRole() != UserRole.SUPER_ADMIN) {
             throw new ApiException(HttpStatus.FORBIDDEN, "No puede asignar rol SUPER_ADMIN");
         }
     }

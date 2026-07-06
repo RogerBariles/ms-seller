@@ -26,19 +26,19 @@ public class CompanyController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'DEVELOPER')")
     public List<CompanyResponse> list() {
         return companyService.listCompanies();
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DEVELOPER')")
     public CompanyResponse create(@Valid @RequestBody CompanyRequest request) {
         return companyService.createCompany(request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DEVELOPER')")
     public CompanyResponse update(@PathVariable UUID id, @Valid @RequestBody CompanyRequest request) {
         return companyService.updateCompany(id, request);
     }
