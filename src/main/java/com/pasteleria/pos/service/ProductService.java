@@ -128,7 +128,10 @@ public class ProductService {
     public int bulkPriceIncrease(BulkPriceIncreaseRequest request) {
         UserPrincipal principal = SecurityUtils.currentUser();
         User user = userService.getUserEntity(principal.getId());
-        List<Product> products = productRepository.findByActiveTrue();
+        Company company = user.getCompany();
+        List<Product> products = company != null
+                ? productRepository.findActiveByCompanyAndCategory(company.getId(), request.category())
+                : productRepository.findByActiveTrue();
         int updated = 0;
 
         for (Product product : products) {

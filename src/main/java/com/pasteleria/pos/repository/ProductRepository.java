@@ -47,4 +47,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             @Param("companyId") UUID companyId);
 
     List<Product> findByActiveTrue();
+
+    @Query("SELECT p FROM Product p WHERE p.active = true " +
+            "AND (:category IS NULL OR p.category = :category) " +
+            "AND p.company.id = :companyId")
+    List<Product> findActiveByCompanyAndCategory(
+            @Param("companyId") UUID companyId,
+            @Param("category") ProductCategory category);
 }
