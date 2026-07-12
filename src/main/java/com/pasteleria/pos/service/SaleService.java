@@ -36,18 +36,21 @@ public class SaleService {
     private final ShiftService shiftService;
     private final CashRegisterService cashRegisterService;
     private final UserService userService;
+    private final StockService stockService;
 
     public SaleService(
             SaleRepository saleRepository,
             ProductService productService,
             ShiftService shiftService,
             CashRegisterService cashRegisterService,
-            UserService userService) {
+            UserService userService,
+            StockService stockService) {
         this.saleRepository = saleRepository;
         this.productService = productService;
         this.shiftService = shiftService;
         this.cashRegisterService = cashRegisterService;
         this.userService = userService;
+        this.stockService = stockService;
     }
 
     @Transactional
@@ -75,6 +78,12 @@ public class SaleService {
         sale.setBirthday(false);
 
         List<SaleItem> items = buildItems(sale, seller, request.items());
+
+        // Deduct stock for each item sold
+        for (SaleItem item : items) {
+            stockService.deductOnSale(item.getProduct().getId(), item.getQuantity(), sale.getId());
+        }
+
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal lineDiscountTotal = BigDecimal.ZERO;
         for (SaleItem item : items) {

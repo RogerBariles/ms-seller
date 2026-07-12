@@ -17,6 +17,7 @@ import com.pasteleria.pos.dto.SaleItemResponse;
 import com.pasteleria.pos.dto.SaleResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import com.pasteleria.pos.dto.StockResponse;
 import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.dto.ShiftResponse;
 import com.pasteleria.pos.dto.UserResponse;
@@ -95,7 +96,8 @@ public final class DtoMapper {
                 product.isActive(),
                 product.getUpdatedAt(),
                 company != null ? company.getId() : null,
-                company != null ? company.getName() : null);
+                company != null ? company.getName() : null,
+                product.getCurrentStock());
     }
 
     public static ProductPriceAuditResponse toAuditResponse(ProductPriceAudit audit) {
@@ -137,6 +139,13 @@ public final class DtoMapper {
                 profit,
                 sale.getCreatedAt(),
                 items);
+    }
+
+    public static StockResponse toStockResponse(Product product) {
+        return new StockResponse(
+                product.getId(),
+                product.getName(),
+                product.getCurrentStock() != null ? product.getCurrentStock() : 0);
     }
 
     public static SaleItemResponse toSaleItemResponse(SaleItem item) {

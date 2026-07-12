@@ -3,6 +3,7 @@ package com.pasteleria.pos.repository;
 import com.pasteleria.pos.domain.entity.Product;
 import com.pasteleria.pos.domain.enums.ProductCategory;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -45,6 +46,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             @Param("pattern") String pattern,
             @Param("category") ProductCategory category,
             @Param("companyId") UUID companyId);
+
+    @Query("SELECT p FROM Product p WHERE p.id = :id AND p.company.id = :companyId")
+    Optional<Product> findByIdAndCompanyId(@Param("id") UUID id, @Param("companyId") UUID companyId);
 
     List<Product> findByActiveTrue();
 

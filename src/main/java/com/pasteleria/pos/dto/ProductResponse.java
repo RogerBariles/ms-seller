@@ -14,6 +14,7 @@ public record ProductResponse(
         boolean active,
         OffsetDateTime updatedAt,
         UUID companyId,
-        String companyName
+        String companyName,
+        Integer currentStock
 ) {
 }

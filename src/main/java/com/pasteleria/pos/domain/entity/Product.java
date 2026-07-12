@@ -41,6 +41,9 @@ public class Product {
     @JoinColumn(name = "company_id")
     private Company company;
 
+    @Column(name = "current_stock", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    private Integer currentStock = 0;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -93,6 +96,14 @@ public class Product {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public Integer getCurrentStock() {
+        return currentStock;
+    }
+
+    public void setCurrentStock(Integer currentStock) {
+        this.currentStock = currentStock;
     }
 
     public Company getCompany() {

@@ -39,6 +39,7 @@ class SaleServiceTest {
     private ShiftService shiftService;
     private CashRegisterService cashRegisterService;
     private UserService userService;
+    private StockService stockService;
     private SaleService saleService;
 
     private static final UUID SELLER_ID = UUID.randomUUID();
@@ -55,8 +56,9 @@ class SaleServiceTest {
         shiftService = mock(ShiftService.class);
         cashRegisterService = mock(CashRegisterService.class);
         userService = mock(UserService.class);
+        stockService = mock(StockService.class);
         saleService = new SaleService(
-                saleRepository, productService, shiftService, cashRegisterService, userService);
+                saleRepository, productService, shiftService, cashRegisterService, userService, stockService);
 
         seller = createSeller();
         UserPrincipal principal = new UserPrincipal(seller);
