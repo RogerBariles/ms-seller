@@ -4,6 +4,7 @@ import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.SaleItem;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ProductCategory;
+import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.SaleResponse;
 import com.pasteleria.pos.dto.SalesReportResponse;
 import com.pasteleria.pos.dto.TopDayResponse;
@@ -59,7 +60,8 @@ public class ReportService {
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId, category);
+        UUID resolvedSellerId = resolveSellerId(sellerId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, resolvedSellerId, resolvedCompanyId, category);
         List<SaleResponse> saleResponses = sales.stream().map(DtoMapper::toSaleResponse).toList();
 
         Map<PaymentMethod, BigDecimal> amountByPaymentMethod = new EnumMap<>(PaymentMethod.class);
@@ -111,7 +113,8 @@ public class ReportService {
         OffsetDateTime to = OffsetDateTime.of(toDate, LocalTime.MAX, ZONE.getRules().getOffset(toDate.atStartOfDay()));
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, sellerId, resolvedCompanyId, category);
+        UUID resolvedSellerId = resolveSellerId(sellerId);
+        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, resolvedSellerId, resolvedCompanyId, category);
 
         // Top 10 best-selling products
         Map<String, Long> productQuantityMap = new HashMap<>();
@@ -161,5 +164,13 @@ public class ReportService {
             return companyId;
         }
         return SecurityUtils.currentUser().getCompanyId();
+    }
+
+    private static UUID resolveSellerId(UUID sellerId) {
+        var principal = SecurityUtils.currentUser();
+        if (principal.getRole() == UserRole.SELLER) {
+            return principal.getId();
+        }
+        return sellerId;
     }
 }
