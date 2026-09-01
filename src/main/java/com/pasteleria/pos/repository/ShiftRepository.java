@@ -3,6 +3,7 @@ package com.pasteleria.pos.repository;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -126,4 +127,19 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             WHERE s.id = :id AND s.company.id = :companyId
             """)
     boolean existsByIdAndCompanyId(@Param("id") UUID id, @Param("companyId") UUID companyId);
+
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            WHERE s.seller.id = :sellerId
+              AND s.company.id = :companyId
+              AND s.startedAt >= :from
+              AND s.startedAt <= :to
+            ORDER BY s.startedAt DESC
+            """)
+    List<Shift> findBySellerAndCompanyAndStartedAtBetween(
+            @Param("sellerId") UUID sellerId,
+            @Param("companyId") UUID companyId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
 }
