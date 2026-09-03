@@ -2,13 +2,14 @@ package com.pasteleria.pos.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.ProductCategory;
 import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
@@ -55,7 +56,13 @@ class ReportServiceTest {
         LocalDate today = LocalDate.now();
         reportService.getSalesReport(today, today, null, OTHER_SELLER_ID, COMPANY_ID, null);
 
-        verify(saleRepository).findForReport(any(), any(), isNull(), eq(SELLER_ID), eq(COMPANY_ID), isNull());
+        verify(saleRepository).findForReport(
+                any(),
+                any(),
+                eq(List.of(PaymentMethod.values())),
+                eq(SELLER_ID),
+                eq(COMPANY_ID),
+                eq(List.of(ProductCategory.values())));
     }
 
     @Test
@@ -67,7 +74,51 @@ class ReportServiceTest {
         LocalDate today = LocalDate.now();
         reportService.getSalesReport(today, today, null, OTHER_SELLER_ID, COMPANY_ID, null);
 
-        verify(saleRepository).findForReport(any(), any(), isNull(), eq(OTHER_SELLER_ID), eq(COMPANY_ID), isNull());
+        verify(saleRepository).findForReport(
+                any(),
+                any(),
+                eq(List.of(PaymentMethod.values())),
+                eq(OTHER_SELLER_ID),
+                eq(COMPANY_ID),
+                eq(List.of(ProductCategory.values())));
+    }
+
+    @Test
+    void salesReportPassesSelectedCategoriesToRepository() {
+        UserPrincipal principal = new UserPrincipal(createUser(UUID.randomUUID(), UserRole.SUPER_ADMIN));
+        securityUtilsMock = Mockito.mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::currentUser).thenReturn(principal);
+
+        LocalDate today = LocalDate.now();
+        List<ProductCategory> categories = List.of(ProductCategory.TORTAS, ProductCategory.ALFAJORES);
+        reportService.getSalesReport(today, today, null, OTHER_SELLER_ID, COMPANY_ID, categories);
+
+        verify(saleRepository).findForReport(
+                any(),
+                any(),
+                eq(List.of(PaymentMethod.values())),
+                eq(OTHER_SELLER_ID),
+                eq(COMPANY_ID),
+                eq(categories));
+    }
+
+    @Test
+    void salesReportPassesSelectedPaymentMethodsToRepository() {
+        UserPrincipal principal = new UserPrincipal(createUser(UUID.randomUUID(), UserRole.SUPER_ADMIN));
+        securityUtilsMock = Mockito.mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::currentUser).thenReturn(principal);
+
+        LocalDate today = LocalDate.now();
+        List<PaymentMethod> paymentMethods = List.of(PaymentMethod.EFECTIVO, PaymentMethod.TARJETA);
+        reportService.getSalesReport(today, today, paymentMethods, OTHER_SELLER_ID, COMPANY_ID, null);
+
+        verify(saleRepository).findForReport(
+                any(),
+                any(),
+                eq(paymentMethods),
+                eq(OTHER_SELLER_ID),
+                eq(COMPANY_ID),
+                eq(List.of(ProductCategory.values())));
     }
 
     private static User createUser(UUID id, UserRole role) {

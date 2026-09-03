@@ -8,6 +8,7 @@ import com.pasteleria.pos.dto.TopStatsResponse;
 import com.pasteleria.pos.service.ReportService;
 import com.pasteleria.pos.service.ShiftReportService;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,10 +34,10 @@ public class ReportController {
     public SalesReportResponse sales(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) PaymentMethod paymentMethod,
+            @RequestParam(required = false) List<PaymentMethod> paymentMethod,
             @RequestParam(required = false) UUID sellerId,
             @RequestParam(required = false) UUID companyId,
-            @RequestParam(required = false) ProductCategory category) {
+            @RequestParam(required = false) List<ProductCategory> category) {
         return reportService.getSalesReport(
                 fromDate,
                 toDate,
@@ -50,10 +51,10 @@ public class ReportController {
     public TopStatsResponse topStats(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) PaymentMethod paymentMethod,
+            @RequestParam(required = false) List<PaymentMethod> paymentMethod,
             @RequestParam(required = false) UUID sellerId,
             @RequestParam(required = false) UUID companyId,
-            @RequestParam(required = false) ProductCategory category) {
+            @RequestParam(required = false) List<ProductCategory> category) {
         return reportService.getTopStats(
                 fromDate,
                 toDate,

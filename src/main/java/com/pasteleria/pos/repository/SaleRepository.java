@@ -64,19 +64,19 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
             JOIN FETCH s.items item
             JOIN FETCH item.product
             WHERE s.createdAt >= :from AND s.createdAt <= :to
-              AND (:paymentMethod IS NULL OR s.paymentMethod = :paymentMethod)
+              AND s.paymentMethod IN :paymentMethods
               AND (:sellerId IS NULL OR s.seller.id = :sellerId)
               AND (:companyId IS NULL OR seller.company.id = :companyId)
-              AND (:category IS NULL OR item.product.category = :category)
+              AND item.product.category IN :categories
             ORDER BY s.createdAt DESC
             """)
     List<Sale> findForReport(
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to,
-            @Param("paymentMethod") PaymentMethod paymentMethod,
+            @Param("paymentMethods") List<PaymentMethod> paymentMethods,
             @Param("sellerId") UUID sellerId,
             @Param("companyId") UUID companyId,
-            @Param("category") ProductCategory category);
+            @Param("categories") List<ProductCategory> categories);
 
     boolean existsBySellerIdAndBirthdayTrueAndCreatedAtBetween(
             UUID sellerId, OffsetDateTime from, OffsetDateTime to);

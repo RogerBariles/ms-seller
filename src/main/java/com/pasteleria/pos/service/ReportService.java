@@ -45,10 +45,10 @@ public class ReportService {
     public SalesReportResponse getSalesReport(
             LocalDate fromDate,
             LocalDate toDate,
-            PaymentMethod paymentMethod,
+            List<PaymentMethod> paymentMethods,
             UUID sellerId,
             UUID companyId,
-            ProductCategory category) {
+            List<ProductCategory> categories) {
         if (fromDate == null || toDate == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Debe indicar rango de fechas");
         }
@@ -61,7 +61,13 @@ public class ReportService {
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
         UUID resolvedSellerId = resolveSellerId(sellerId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, resolvedSellerId, resolvedCompanyId, category);
+        List<Sale> sales = saleRepository.findForReport(
+                from,
+                to,
+                resolvePaymentMethods(paymentMethods),
+                resolvedSellerId,
+                resolvedCompanyId,
+                resolveCategories(categories));
         List<SaleResponse> saleResponses = sales.stream().map(DtoMapper::toSaleResponse).toList();
 
         Map<PaymentMethod, BigDecimal> amountByPaymentMethod = new EnumMap<>(PaymentMethod.class);
@@ -98,10 +104,10 @@ public class ReportService {
     public TopStatsResponse getTopStats(
             LocalDate fromDate,
             LocalDate toDate,
-            PaymentMethod paymentMethod,
+            List<PaymentMethod> paymentMethods,
             UUID sellerId,
             UUID companyId,
-            ProductCategory category) {
+            List<ProductCategory> categories) {
         if (fromDate == null || toDate == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Debe indicar rango de fechas");
         }
@@ -114,7 +120,13 @@ public class ReportService {
 
         UUID resolvedCompanyId = resolveCompanyId(companyId);
         UUID resolvedSellerId = resolveSellerId(sellerId);
-        List<Sale> sales = saleRepository.findForReport(from, to, paymentMethod, resolvedSellerId, resolvedCompanyId, category);
+        List<Sale> sales = saleRepository.findForReport(
+                from,
+                to,
+                resolvePaymentMethods(paymentMethods),
+                resolvedSellerId,
+                resolvedCompanyId,
+                resolveCategories(categories));
 
         // Top 10 best-selling products
         Map<String, Long> productQuantityMap = new HashMap<>();
@@ -157,6 +169,20 @@ public class ReportService {
                 .toList();
 
         return new TopStatsResponse(topProducts, topDays, topSellers);
+    }
+
+    private static List<PaymentMethod> resolvePaymentMethods(List<PaymentMethod> paymentMethods) {
+        if (paymentMethods == null || paymentMethods.isEmpty()) {
+            return List.of(PaymentMethod.values());
+        }
+        return List.copyOf(paymentMethods);
+    }
+
+    private static List<ProductCategory> resolveCategories(List<ProductCategory> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return List.of(ProductCategory.values());
+        }
+        return List.copyOf(categories);
     }
 
     private static UUID resolveCompanyId(UUID companyId) {
