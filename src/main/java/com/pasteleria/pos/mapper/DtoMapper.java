@@ -138,6 +138,7 @@ public final class DtoMapper {
                 costTotal,
                 profit,
                 sale.getCreatedAt(),
+                sale.getAccreditedAt(),
                 items);
     }
 

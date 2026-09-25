@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,6 +62,9 @@ public class Sale {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
+
+    @Column(name = "accredited_at", nullable = false)
+    private LocalDate accreditedAt;
 
     @Column(nullable = false)
     private boolean birthday = false;
@@ -166,6 +170,14 @@ public class Sale {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDate getAccreditedAt() {
+        return accreditedAt;
+    }
+
+    public void setAccreditedAt(LocalDate accreditedAt) {
+        this.accreditedAt = accreditedAt;
     }
 
     public boolean isBirthday() {
