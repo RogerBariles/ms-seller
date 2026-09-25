@@ -17,6 +17,7 @@ import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
+import com.pasteleria.pos.util.AccreditationDateCalculator;
 import com.pasteleria.pos.util.DiscountCalculator;
 import com.pasteleria.pos.util.MixedPaymentCalculator;
 import java.math.BigDecimal;
@@ -111,6 +112,8 @@ public class SaleService {
         sale.setTotal(totals.total());
         sale.setCashAmount(MixedPaymentCalculator.resolveCashAmount(
                 request.paymentMethod(), cashPortion, totals.total()));
+        sale.setAccreditedAt(AccreditationDateCalculator.calculate(
+                sale.getPaymentMethod(), sale.getCreatedAt()));
 
         return DtoMapper.toSaleResponse(saleRepository.save(sale));
     }
@@ -131,6 +134,8 @@ public class SaleService {
         sale.setDiscountTotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         sale.setTotal(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         sale.setCashAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        sale.setAccreditedAt(AccreditationDateCalculator.calculate(
+                sale.getPaymentMethod(), sale.getCreatedAt()));
 
         SaleItem item = new SaleItem();
         item.setId(UUID.randomUUID());
