@@ -7,5 +7,8 @@ public record ContabilidadResponse(
     BigDecimal totalSales,
     BigDecimal totalExpenses,
     BigDecimal netAmount,
-    List<ExpenseResponse> expenses
+    List<ExpenseResponse> expenses,
+    BigDecimal totalCashIncome,
+    BigDecimal totalCashWithdrawal,
+    List<ShiftCashMovementResponse> cashMovements
 ) {}

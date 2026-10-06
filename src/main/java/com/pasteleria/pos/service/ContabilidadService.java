@@ -2,13 +2,18 @@ package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Expense;
+import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.domain.enums.CashMovementType;
 import com.pasteleria.pos.dto.ContabilidadResponse;
 import com.pasteleria.pos.dto.CreateExpenseRequest;
 import com.pasteleria.pos.dto.ExpenseResponse;
+import com.pasteleria.pos.dto.ShiftCashMovementResponse;
+import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.repository.ExpenseRepository;
 import com.pasteleria.pos.repository.SaleRepository;
+import com.pasteleria.pos.repository.ShiftCashMovementRepository;
 import com.pasteleria.pos.repository.UserRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
@@ -31,13 +36,19 @@ public class ContabilidadService {
 
     private final SaleRepository saleRepository;
     private final ExpenseRepository expenseRepository;
+    private final ShiftCashMovementRepository cashMovementRepository;
     private final UserRepository userRepository;
     private final CompanyService companyService;
 
-    public ContabilidadService(SaleRepository saleRepository, ExpenseRepository expenseRepository,
-                               UserRepository userRepository, CompanyService companyService) {
+    public ContabilidadService(
+            SaleRepository saleRepository,
+            ExpenseRepository expenseRepository,
+            ShiftCashMovementRepository cashMovementRepository,
+            UserRepository userRepository,
+            CompanyService companyService) {
         this.saleRepository = saleRepository;
         this.expenseRepository = expenseRepository;
+        this.cashMovementRepository = cashMovementRepository;
         this.userRepository = userRepository;
         this.companyService = companyService;
     }
@@ -55,7 +66,17 @@ public class ContabilidadService {
         BigDecimal totalExpenses = companyId != null
                 ? expenseRepository.sumExpensesBetweenByCompany(from, to, companyId)
                 : BigDecimal.ZERO;
-        BigDecimal netAmount = totalSales.subtract(totalExpenses).setScale(2, RoundingMode.HALF_UP);
+
+        List<ShiftCashMovement> cashMovements = companyId != null
+                ? cashMovementRepository.findBetweenByCompany(from, to, companyId)
+                : List.of();
+        BigDecimal totalCashIncome = sumCashMovements(cashMovements, CashMovementType.INCOME);
+        BigDecimal totalCashWithdrawal = sumCashMovements(cashMovements, CashMovementType.WITHDRAWAL);
+        BigDecimal netAmount = totalSales
+                .add(totalCashIncome)
+                .subtract(totalExpenses)
+                .subtract(totalCashWithdrawal)
+                .setScale(2, RoundingMode.HALF_UP);
 
         List<Expense> expenses = companyId != null
                 ? expenseRepository.findBetweenByCompany(from, to, companyId)
@@ -68,12 +89,18 @@ public class ContabilidadService {
                         e.getCreatedBy().getName(),
                         e.getCreatedAt()))
                 .toList();
+        List<ShiftCashMovementResponse> cashMovementResponses = cashMovements.stream()
+                .map(DtoMapper::toShiftCashMovementResponse)
+                .toList();
 
         return new ContabilidadResponse(
             totalSales.setScale(2, RoundingMode.HALF_UP),
             totalExpenses.setScale(2, RoundingMode.HALF_UP),
             netAmount,
-            expenseResponses);
+            expenseResponses,
+            totalCashIncome,
+            totalCashWithdrawal,
+            cashMovementResponses);
     }
 
     @Transactional
@@ -111,5 +138,13 @@ public class ContabilidadService {
             expense.getAmount(),
             expense.getCreatedBy().getName(),
             expense.getCreatedAt());
+    }
+
+    private static BigDecimal sumCashMovements(List<ShiftCashMovement> movements, CashMovementType type) {
+        return movements.stream()
+                .filter(movement -> movement.getMovementType() == type)
+                .map(ShiftCashMovement::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

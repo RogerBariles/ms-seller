@@ -3,6 +3,7 @@ package com.pasteleria.pos.repository;
 import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.enums.CashMovementType;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -44,4 +45,17 @@ public interface ShiftCashMovementRepository extends JpaRepository<ShiftCashMove
     BigDecimal sumByCashRegisterIdAndType(
             @Param("cashRegisterId") UUID cashRegisterId,
             @Param("type") CashMovementType type);
+
+    @Query("""
+            SELECT m FROM ShiftCashMovement m
+            JOIN FETCH m.createdBy
+            JOIN m.shift s
+            WHERE m.createdAt >= :from AND m.createdAt <= :to
+              AND s.company.id = :companyId
+            ORDER BY m.createdAt DESC
+            """)
+    List<ShiftCashMovement> findBetweenByCompany(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            @Param("companyId") UUID companyId);
 }
