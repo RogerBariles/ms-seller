@@ -177,11 +177,11 @@ public class ShiftService {
     }
 
     /**
-     * Turno donde se registra una venta. El ADMIN usa su propio turno si lo tiene abierto;
+     * Turno donde se registra una venta. ADMIN y SUPER_ADMIN usan su propio turno si lo tienen abierto;
      * si no, vende sobre el turno abierto más antiguo de su empresa.
      */
     public Shift getRequiredShiftForSale(UserPrincipal principal) {
-        if (principal.getRole() != UserRole.ADMIN) {
+        if (principal.getRole() != UserRole.ADMIN && principal.getRole() != UserRole.SUPER_ADMIN) {
             return getRequiredActiveShiftForSeller(principal.getId());
         }
         UUID companyId = principal.getCompanyId();
