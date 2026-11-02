@@ -78,7 +78,7 @@ class SaleServiceTest {
         when(cashRegisterService.getOpenCashRegisterForToday()).thenReturn(null);
         Shift shift = new Shift();
         shift.setId(UUID.randomUUID());
-        when(shiftService.getRequiredActiveShiftForSeller(any())).thenReturn(shift);
+        when(shiftService.getRequiredShiftForSale(any())).thenReturn(shift);
     }
 
     @AfterEach

@@ -6,6 +6,7 @@ import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
+import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.PaymentTotalsResponse;
 import com.pasteleria.pos.dto.ShiftActiveResponse;
@@ -173,6 +174,20 @@ public class ShiftService {
         UUID companyId = SecurityUtils.currentUser().getCompanyId();
         return shiftRepository.findBySellerIdAndStatus(sellerId, ShiftStatus.OPEN, companyId)
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Debe tener caja y turno abiertos para vender"));
+    }
+
+    /**
+     * Turno donde se registra una venta. El ADMIN usa su propio turno si lo tiene abierto;
+     * si no, vende sobre el turno abierto más antiguo de su empresa.
+     */
+    public Shift getRequiredShiftForSale(UserPrincipal principal) {
+        if (principal.getRole() != UserRole.ADMIN) {
+            return getRequiredActiveShiftForSeller(principal.getId());
+        }
+        UUID companyId = principal.getCompanyId();
+        return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
+                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId))
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay ningún turno abierto para vender"));
     }
 
     private ShiftActiveResponse toActiveResponse(Shift shift) {

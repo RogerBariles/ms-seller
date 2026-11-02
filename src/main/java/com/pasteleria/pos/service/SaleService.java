@@ -65,7 +65,7 @@ public class SaleService {
         User seller = userService.getUserEntity(principal.getId());
 
         cashRegisterService.getOpenCashRegisterForToday();
-        Shift shift = shiftService.getRequiredActiveShiftForSeller(principal.getId());
+        Shift shift = shiftService.getRequiredShiftForSale(principal);
 
         Sale sale = new Sale();
         sale.setId(UUID.randomUUID());

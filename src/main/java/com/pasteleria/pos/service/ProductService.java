@@ -8,7 +8,6 @@ import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.PriceChangeType;
 import com.pasteleria.pos.domain.enums.PriceField;
 import com.pasteleria.pos.domain.enums.ProductCategory;
-import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.BulkPriceIncreaseRequest;
 import com.pasteleria.pos.dto.ProductPriceAuditResponse;
 import com.pasteleria.pos.dto.ProductRequest;
@@ -69,19 +68,15 @@ public class ProductService {
         String pattern = query == null ? null : "%" + query + "%";
 
         UserPrincipal principal = SecurityUtils.currentUser();
-        if (principal.getRole() == UserRole.SELLER) {
-            User user = userService.getUserEntity(principal.getId());
-            Company userCompany = user.getCompany();
-            UUID companyId = userCompany != null ? userCompany.getId() : null;
-            if (companyId != null) {
-                return productRepository.searchByCompany(pattern, category, companyId).stream()
-                        .map(DtoMapper::toProductResponse)
-                        .toList();
-            }
+        User user = userService.getUserEntity(principal.getId());
+        Company userCompany = user.getCompany();
+        UUID companyId = userCompany != null ? userCompany.getId() : null;
+        if (companyId != null) {
+            return productRepository.searchByCompany(pattern, category, companyId).stream()
+                    .map(DtoMapper::toProductResponse)
+                    .toList();
         }
-        return productRepository.search(pattern, category).stream()
-                .map(DtoMapper::toProductResponse)
-                .toList();
+        return List.of();
     }
 
     @Transactional
