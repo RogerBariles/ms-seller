@@ -9,6 +9,7 @@ import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.DiscountType;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.CreateSaleRequest;
 import com.pasteleria.pos.dto.SaleItemRequest;
 import com.pasteleria.pos.dto.SaleResponse;
@@ -64,7 +65,10 @@ public class SaleService {
         UserPrincipal principal = SecurityUtils.currentUser();
         User seller = userService.getUserEntity(principal.getId());
 
-        cashRegisterService.getOpenCashRegisterForToday();
+        // SUPER_ADMIN puede vender sin caja abierta
+        if (principal.getRole() != UserRole.SUPER_ADMIN) {
+            cashRegisterService.getOpenCashRegisterForToday();
+        }
         Shift shift = shiftService.getRequiredShiftForSale(principal);
 
         Sale sale = new Sale();

@@ -178,16 +178,20 @@ public class ShiftService {
 
     /**
      * Turno donde se registra una venta. ADMIN y SUPER_ADMIN usan su propio turno si lo tienen abierto;
-     * si no, vende sobre el turno abierto más antiguo de su empresa.
+     * si no, vende sobre el turno abierto más antiguo de su empresa. SUPER_ADMIN puede vender aunque
+     * no haya ningún turno abierto: la venta queda sin turno (devuelve null).
      */
     public Shift getRequiredShiftForSale(UserPrincipal principal) {
         if (principal.getRole() != UserRole.ADMIN && principal.getRole() != UserRole.SUPER_ADMIN) {
             return getRequiredActiveShiftForSeller(principal.getId());
         }
         UUID companyId = principal.getCompanyId();
-        return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
-                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId))
-                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay ningún turno abierto para vender"));
+        Optional<Shift> shift = shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
+                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId));
+        if (principal.getRole() == UserRole.SUPER_ADMIN) {
+            return shift.orElse(null);
+        }
+        return shift.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay ningún turno abierto para vender"));
     }
 
     private ShiftActiveResponse toActiveResponse(Shift shift) {
