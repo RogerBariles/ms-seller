@@ -178,20 +178,31 @@ public class ShiftService {
 
     /**
      * Turno donde se registra una venta. ADMIN y SUPER_ADMIN usan su propio turno si lo tienen abierto;
-     * si no, vende sobre el turno abierto más antiguo de su empresa. SUPER_ADMIN puede vender aunque
-     * no haya ningún turno abierto: la venta queda sin turno (devuelve null).
+     * si no, vende sobre el turno abierto más antiguo de su empresa.
      */
     public Shift getRequiredShiftForSale(UserPrincipal principal) {
         if (principal.getRole() != UserRole.ADMIN && principal.getRole() != UserRole.SUPER_ADMIN) {
             return getRequiredActiveShiftForSeller(principal.getId());
         }
-        UUID companyId = principal.getCompanyId();
-        Optional<Shift> shift = shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
-                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId));
-        if (principal.getRole() == UserRole.SUPER_ADMIN) {
-            return shift.orElse(null);
+        return findShiftForSale(principal)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay ningún turno abierto para vender"));
+    }
+
+    /** Turno que usaría el usuario actual para vender (para que el front muestre dónde se registra). */
+    @Transactional(readOnly = true)
+    public Optional<ShiftSummaryResponse> getShiftForSale() {
+        UserPrincipal principal = SecurityUtils.currentUser();
+        if (principal.getRole() != UserRole.ADMIN && principal.getRole() != UserRole.SUPER_ADMIN) {
+            return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, principal.getCompanyId())
+                    .map(this::toSummary);
         }
-        return shift.orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "No hay ningún turno abierto para vender"));
+        return findShiftForSale(principal).map(this::toSummary);
+    }
+
+    private Optional<Shift> findShiftForSale(UserPrincipal principal) {
+        UUID companyId = principal.getCompanyId();
+        return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)
+                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId));
     }
 
     private ShiftActiveResponse toActiveResponse(Shift shift) {

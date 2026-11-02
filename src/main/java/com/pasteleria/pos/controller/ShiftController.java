@@ -44,6 +44,13 @@ public class ShiftController {
                 .orElse(ResponseEntity.noContent().build());
     }
 
+    @GetMapping("/sale-shift")
+    public ResponseEntity<ShiftSummaryResponse> getSaleShift() {
+        return shiftService.getShiftForSale()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/by-date")
     public List<ShiftSummaryResponse> getByDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

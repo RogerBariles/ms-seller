@@ -65,7 +65,7 @@ public class SaleService {
         UserPrincipal principal = SecurityUtils.currentUser();
         User seller = userService.getUserEntity(principal.getId());
 
-        // SUPER_ADMIN puede vender sin caja abierta
+        // SUPER_ADMIN no necesita caja abierta hoy: vende sobre el turno abierto que haya
         if (principal.getRole() != UserRole.SUPER_ADMIN) {
             cashRegisterService.getOpenCashRegisterForToday();
         }
