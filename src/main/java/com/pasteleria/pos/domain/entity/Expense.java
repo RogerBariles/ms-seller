@@ -1,7 +1,10 @@
 package com.pasteleria.pos.domain.entity;
 
+import com.pasteleria.pos.domain.enums.ExpensePaymentSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -34,6 +37,13 @@ public class Expense {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_source", length = 20)
+    private ExpensePaymentSource paymentSource;
+
+    @Column(name = "cash_movement_id")
+    private UUID cashMovementId;
 
     public Expense() {}
 
@@ -91,5 +101,21 @@ public class Expense {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public ExpensePaymentSource getPaymentSource() {
+        return paymentSource;
+    }
+
+    public void setPaymentSource(ExpensePaymentSource paymentSource) {
+        this.paymentSource = paymentSource;
+    }
+
+    public UUID getCashMovementId() {
+        return cashMovementId;
+    }
+
+    public void setCashMovementId(UUID cashMovementId) {
+        this.cashMovementId = cashMovementId;
     }
 }
