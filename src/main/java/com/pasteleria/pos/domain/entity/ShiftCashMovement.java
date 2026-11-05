@@ -1,5 +1,6 @@
 package com.pasteleria.pos.domain.entity;
 
+import com.pasteleria.pos.domain.enums.CashMovementCategory;
 import com.pasteleria.pos.domain.enums.CashMovementType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +29,10 @@ public class ShiftCashMovement {
     @Enumerated(EnumType.STRING)
     @Column(name = "movement_type", nullable = false, length = 20)
     private CashMovementType movementType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private CashMovementCategory category = CashMovementCategory.OTHER;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
@@ -64,6 +69,14 @@ public class ShiftCashMovement {
 
     public void setMovementType(CashMovementType movementType) {
         this.movementType = movementType;
+    }
+
+    public CashMovementCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(CashMovementCategory category) {
+        this.category = category;
     }
 
     public BigDecimal getAmount() {

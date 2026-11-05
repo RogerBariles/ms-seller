@@ -79,6 +79,7 @@ public final class DtoMapper {
         return new ShiftCashMovementResponse(
                 movement.getId(),
                 movement.getMovementType(),
+                movement.getCategory(),
                 movement.getAmount(),
                 movement.getDetail(),
                 movement.getCreatedBy().getName(),

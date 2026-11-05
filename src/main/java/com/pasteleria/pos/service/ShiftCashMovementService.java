@@ -1,14 +1,17 @@
 package com.pasteleria.pos.service;
 
+import com.pasteleria.pos.domain.entity.Expense;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.CashMovementType;
+import com.pasteleria.pos.domain.enums.ExpensePaymentSource;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.dto.ShiftCashMovementRequest;
 import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
+import com.pasteleria.pos.repository.ExpenseRepository;
 import com.pasteleria.pos.repository.ShiftCashMovementRepository;
 import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.repository.ShiftRepository;
@@ -32,16 +35,19 @@ public class ShiftCashMovementService {
     private final ShiftRepository shiftRepository;
     private final SaleRepository saleRepository;
     private final UserService userService;
+    private final ExpenseRepository expenseRepository;
 
     public ShiftCashMovementService(
             ShiftCashMovementRepository movementRepository,
             ShiftRepository shiftRepository,
             SaleRepository saleRepository,
-            UserService userService) {
+            UserService userService,
+            ExpenseRepository expenseRepository) {
         this.movementRepository = movementRepository;
         this.shiftRepository = shiftRepository;
         this.saleRepository = saleRepository;
         this.userService = userService;
+        this.expenseRepository = expenseRepository;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +59,9 @@ public class ShiftCashMovementService {
 
     @Transactional
     public ShiftCashMovementResponse addMovement(UUID shiftId, ShiftCashMovementRequest request) {
+        if (!request.category().allowedFor(request.type())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La categoría no corresponde al tipo de movimiento");
+        }
         Shift shift = getOpenShiftForCurrentUser(shiftId);
         if (request.type() == CashMovementType.WITHDRAWAL) {
             BigDecimal available = availableCash(shift.getId(), shift.getInitialCash());
@@ -70,11 +79,26 @@ public class ShiftCashMovementService {
         movement.setId(UUID.randomUUID());
         movement.setShift(shift);
         movement.setMovementType(request.type());
+        movement.setCategory(request.category());
         movement.setAmount(request.amount());
         movement.setDetail(request.detail().trim());
         movement.setCreatedBy(user);
         movement.setCreatedAt(OffsetDateTime.now(ZONE));
-        return DtoMapper.toShiftCashMovementResponse(movementRepository.save(movement));
+        ShiftCashMovement saved = movementRepository.save(movement);
+        if (request.category().createsExpense()) {
+            expenseRepository.save(toExpense(saved, shift));
+        }
+        return DtoMapper.toShiftCashMovementResponse(saved);
+    }
+
+    private Expense toExpense(ShiftCashMovement movement, Shift shift) {
+        Expense expense = new Expense(
+                UUID.randomUUID(), movement.getDetail(), movement.getAmount(), movement.getCreatedBy());
+        expense.setCompany(shift.getCompany());
+        expense.setCreatedAt(movement.getCreatedAt());
+        expense.setPaymentSource(ExpensePaymentSource.CASH);
+        expense.setCashMovementId(movement.getId());
+        return expense;
     }
 
     public BigDecimal sumIncome(UUID shiftId) {

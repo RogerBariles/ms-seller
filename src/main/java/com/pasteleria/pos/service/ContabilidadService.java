@@ -73,9 +73,9 @@ public class ContabilidadService {
         BigDecimal totalCashIncome = sumCashMovements(cashMovements, CashMovementType.INCOME);
         BigDecimal totalCashWithdrawal = sumCashMovements(cashMovements, CashMovementType.WITHDRAWAL);
         BigDecimal netAmount = totalSales
-                .add(totalCashIncome)
+                .add(sumResultMovements(cashMovements, CashMovementType.INCOME))
                 .subtract(totalExpenses)
-                .subtract(totalCashWithdrawal)
+                .subtract(sumResultMovements(cashMovements, CashMovementType.WITHDRAWAL))
                 .setScale(2, RoundingMode.HALF_UP);
 
         List<Expense> expenses = companyId != null
@@ -86,6 +86,7 @@ public class ContabilidadService {
                         e.getId(),
                         e.getDetail(),
                         e.getAmount(),
+                        e.getPaymentSource(),
                         e.getCreatedBy().getName(),
                         e.getCreatedAt()))
                 .toList();
@@ -111,6 +112,9 @@ public class ContabilidadService {
         if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El monto debe ser mayor a cero");
         }
+        if (request.paymentSource() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Debe indicar de dónde salió el pago");
+        }
 
         UserPrincipal principal = SecurityUtils.currentUser();
         UUID companyId = principal.getCompanyId();
@@ -130,14 +134,21 @@ public class ContabilidadService {
         Expense expense = new Expense(UUID.randomUUID(), request.detail().trim(), request.amount(), user);
         expense.setCompany(company);
         expense.setCreatedAt(expenseDate);
+        expense.setPaymentSource(request.paymentSource());
         expense = expenseRepository.save(expense);
 
         return new ExpenseResponse(
             expense.getId(),
             expense.getDetail(),
             expense.getAmount(),
+            expense.getPaymentSource(),
             expense.getCreatedBy().getName(),
             expense.getCreatedAt());
+    }
+
+    private static BigDecimal sumResultMovements(List<ShiftCashMovement> movements, CashMovementType type) {
+        return sumCashMovements(
+                movements.stream().filter(movement -> movement.getCategory().affectsResult()).toList(), type);
     }
 
     private static BigDecimal sumCashMovements(List<ShiftCashMovement> movements, CashMovementType type) {
