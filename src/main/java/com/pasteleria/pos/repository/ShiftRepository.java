@@ -81,6 +81,17 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             @Param("status") ShiftStatus status,
             @Param("companyId") UUID companyId);
 
+    @Query("""
+            SELECT s FROM Shift s
+            JOIN FETCH s.seller
+            WHERE s.status = :status
+              AND s.company.id = :companyId
+            ORDER BY s.startedAt ASC
+            """)
+    List<Shift> findAllByStatusOrderByStartedAtAsc(
+            @Param("status") ShiftStatus status,
+            @Param("companyId") UUID companyId);
+
     // Un-scoped version for background tasks (BirthdaySaleScheduler) with no security context
     @Query("""
             SELECT s FROM Shift s

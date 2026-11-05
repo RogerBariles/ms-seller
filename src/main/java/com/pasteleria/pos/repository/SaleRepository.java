@@ -3,7 +3,9 @@ package com.pasteleria.pos.repository;
 import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ProductCategory;
+import com.pasteleria.pos.dto.ReceivableResponse;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -86,6 +88,24 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
     @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE s.createdAt >= :from AND s.createdAt <= :to")
     BigDecimal sumSalesBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    /** Parte no cobrada en efectivo de las ventas, agrupada por fecha de acreditación. */
+    @Query("""
+            SELECT new com.pasteleria.pos.dto.ReceivableResponse(
+                s.accreditedAt, s.paymentMethod, SUM(s.total - s.cashAmount))
+            FROM Sale s
+            WHERE s.company.id = :companyId
+              AND s.accreditedAt >= :from AND s.accreditedAt <= :to
+              AND s.paymentMethod IN :paymentMethods
+            GROUP BY s.accreditedAt, s.paymentMethod
+            HAVING SUM(s.total - s.cashAmount) > 0
+            ORDER BY s.accreditedAt ASC
+            """)
+    List<ReceivableResponse> findReceivables(
+            @Param("companyId") UUID companyId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("paymentMethods") List<PaymentMethod> paymentMethods);
 
     @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE s.createdAt >= :from AND s.createdAt <= :to AND s.company.id = :companyId")
     BigDecimal sumSalesBetweenByCompany(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to, @Param("companyId") UUID companyId);
