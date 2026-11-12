@@ -1,9 +1,15 @@
 package com.pasteleria.pos.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.pasteleria.pos.domain.entity.Company;
@@ -13,15 +19,19 @@ import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
 import com.pasteleria.pos.domain.enums.ProductCategory;
+import com.pasteleria.pos.domain.enums.SaleStatus;
+import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.CreateSaleRequest;
 import com.pasteleria.pos.dto.SaleItemRequest;
+import com.pasteleria.pos.dto.SaleResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +50,7 @@ class SaleServiceTest {
     private CashRegisterService cashRegisterService;
     private UserService userService;
     private StockService stockService;
+    private ShiftCashMovementService cashMovementService;
     private SaleService saleService;
 
     private static final UUID SELLER_ID = UUID.randomUUID();
@@ -57,8 +68,10 @@ class SaleServiceTest {
         cashRegisterService = mock(CashRegisterService.class);
         userService = mock(UserService.class);
         stockService = mock(StockService.class);
+        cashMovementService = mock(ShiftCashMovementService.class);
         saleService = new SaleService(
-                saleRepository, productService, shiftService, cashRegisterService, userService, stockService);
+                saleRepository, productService, shiftService, cashRegisterService, userService, stockService,
+                cashMovementService);
 
         seller = createSeller();
         UserPrincipal principal = new UserPrincipal(seller);
@@ -137,6 +150,101 @@ class SaleServiceTest {
                 null, null, null, null, null);
 
         assertDoesNotThrow(() -> saleService.createSale(request));
+    }
+
+    @Test
+    void cancelCashSaleRefundsOnItsOpenShiftAndRestoresStock() {
+        Shift openShift = shiftWithStatus(ShiftStatus.OPEN);
+        Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("1500.00"), openShift);
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleResponse response = saleService.cancelSale(sale.getId(), "  Cliente devolvió la torta  ");
+
+        verify(cashMovementService).registerSaleRefund(
+                eq(openShift), eq(new BigDecimal("1500.00")), contains("Cliente devolvió la torta"), eq(seller));
+        verify(stockService).restoreOnSaleCancellation(eq(sale), eq(seller), contains("Cliente devolvió la torta"));
+        assertEquals(SaleStatus.CANCELLED, response.status());
+        assertEquals("Cliente devolvió la torta", response.detail());
+        assertNotNull(response.cancelledAt());
+        assertEquals("Seller", response.cancelledByName());
+    }
+
+    @Test
+    void cancelCardSaleDoesNotTouchCash() {
+        Sale sale = saleWith(PaymentMethod.TARJETA, BigDecimal.ZERO, shiftWithStatus(ShiftStatus.CLOSED));
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleResponse response = saleService.cancelSale(sale.getId(), "Error de carga");
+
+        verify(cashMovementService, never()).registerSaleRefund(any(), any(), any(), any());
+        verify(stockService).restoreOnSaleCancellation(eq(sale), eq(seller), any());
+        assertEquals(SaleStatus.CANCELLED, response.status());
+    }
+
+    @Test
+    void cancelCashSaleOfClosedShiftUsesAnotherOpenShift() {
+        Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("800.00"), shiftWithStatus(ShiftStatus.CLOSED));
+        Shift currentShift = shiftWithStatus(ShiftStatus.OPEN);
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(shiftService.findOpenShiftForCompany(SELLER_ID, SELLER_COMPANY_ID)).thenReturn(Optional.of(currentShift));
+
+        saleService.cancelSale(sale.getId(), "Se anuló al día siguiente");
+
+        verify(cashMovementService).registerSaleRefund(
+                eq(currentShift), eq(new BigDecimal("800.00")), any(), eq(seller));
+    }
+
+    @Test
+    void cancelCashSaleWithoutOpenShiftFailsBeforeTouchingStock() {
+        Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("800.00"), shiftWithStatus(ShiftStatus.CLOSED));
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+        when(shiftService.findOpenShiftForCompany(SELLER_ID, SELLER_COMPANY_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ApiException.class, () -> saleService.cancelSale(sale.getId(), "Motivo"));
+        verify(stockService, never()).restoreOnSaleCancellation(any(), any(), any());
+        assertEquals(SaleStatus.SOLD, sale.getStatus());
+    }
+
+    @Test
+    void cancelAlreadyCancelledSaleThrows() {
+        Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("100.00"), shiftWithStatus(ShiftStatus.OPEN));
+        sale.setStatus(SaleStatus.CANCELLED);
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+
+        assertThrows(ApiException.class, () -> saleService.cancelSale(sale.getId(), "Otra vez"));
+        verify(cashMovementService, never()).registerSaleRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelWithBlankDetailThrows() {
+        Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("100.00"), shiftWithStatus(ShiftStatus.OPEN));
+        when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
+
+        assertThrows(ApiException.class, () -> saleService.cancelSale(sale.getId(), "   "));
+    }
+
+    private static Shift shiftWithStatus(ShiftStatus status) {
+        Shift shift = new Shift();
+        shift.setId(UUID.randomUUID());
+        shift.setStatus(status);
+        return shift;
+    }
+
+    private Sale saleWith(PaymentMethod method, BigDecimal cashAmount, Shift shift) {
+        Sale sale = new Sale();
+        sale.setId(UUID.randomUUID());
+        sale.setSeller(seller);
+        sale.setCompany(seller.getCompany());
+        sale.setShift(shift);
+        sale.setPaymentMethod(method);
+        sale.setSubtotal(new BigDecimal("1500.00"));
+        sale.setDiscountTotal(BigDecimal.ZERO);
+        sale.setTotal(new BigDecimal("1500.00"));
+        sale.setCashAmount(cashAmount);
+        return sale;
     }
 
     private static Product createProductWithCompany(UUID productId, UUID companyId, String name, boolean active) {

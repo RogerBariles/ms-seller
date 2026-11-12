@@ -75,9 +75,11 @@ public class ReportService {
             amountByPaymentMethod.put(method, BigDecimal.ZERO.setScale(2));
         }
 
+        // Las anuladas se muestran en el listado pero no suman en los totales
+        List<Sale> soldSales = sales.stream().filter(sale -> !sale.isCancelled()).toList();
         BigDecimal totalAmount = BigDecimal.ZERO;
         BigDecimal totalCost = BigDecimal.ZERO;
-        for (Sale sale : sales) {
+        for (Sale sale : soldSales) {
             totalAmount = totalAmount.add(sale.getTotal());
             BigDecimal cashPortion = sale.getCashAmount();
             BigDecimal nonCashPortion = sale.getTotal().subtract(cashPortion);
@@ -92,7 +94,7 @@ public class ReportService {
         BigDecimal totalProfit = totalAmount.subtract(totalCost).setScale(2, RoundingMode.HALF_UP);
 
         return new SalesReportResponse(
-                sales.size(),
+                soldSales.size(),
                 totalAmount.setScale(2, RoundingMode.HALF_UP),
                 totalCost,
                 totalProfit,
@@ -126,7 +128,10 @@ public class ReportService {
                 resolvePaymentMethods(paymentMethods),
                 resolvedSellerId,
                 resolvedCompanyId,
-                resolveCategories(categories));
+                resolveCategories(categories))
+                .stream()
+                .filter(sale -> !sale.isCancelled())
+                .toList();
 
         // Top 10 best-selling products
         Map<String, Long> productQuantityMap = new HashMap<>();

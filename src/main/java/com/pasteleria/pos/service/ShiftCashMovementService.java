@@ -4,6 +4,7 @@ import com.pasteleria.pos.domain.entity.Expense;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.domain.enums.CashMovementCategory;
 import com.pasteleria.pos.domain.enums.CashMovementType;
 import com.pasteleria.pos.domain.enums.ExpensePaymentSource;
 import com.pasteleria.pos.domain.enums.ShiftStatus;
@@ -89,6 +90,27 @@ public class ShiftCashMovementService {
             expenseRepository.save(toExpense(saved, shift));
         }
         return DtoMapper.toShiftCashMovementResponse(saved);
+    }
+
+    /** Retiro de caja por la devolución del efectivo de una venta anulada. */
+    @Transactional
+    public ShiftCashMovement registerSaleRefund(Shift shift, BigDecimal amount, String detail, User user) {
+        BigDecimal available = availableCash(shift.getId(), shift.getInitialCash());
+        if (available.compareTo(amount) < 0) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "No hay efectivo suficiente en la caja para devolver " + amount + ". Disponible: " + available);
+        }
+        ShiftCashMovement movement = new ShiftCashMovement();
+        movement.setId(UUID.randomUUID());
+        movement.setShift(shift);
+        movement.setMovementType(CashMovementType.WITHDRAWAL);
+        movement.setCategory(CashMovementCategory.SALE_CANCELLATION);
+        movement.setAmount(amount);
+        movement.setDetail(detail);
+        movement.setCreatedBy(user);
+        movement.setCreatedAt(OffsetDateTime.now(ZONE));
+        return movementRepository.save(movement);
     }
 
     private Expense toExpense(ShiftCashMovement movement, Shift shift) {

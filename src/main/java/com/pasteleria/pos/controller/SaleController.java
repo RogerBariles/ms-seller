@@ -1,10 +1,12 @@
 package com.pasteleria.pos.controller;
 
+import com.pasteleria.pos.dto.CancelSaleRequest;
 import com.pasteleria.pos.dto.CreateSaleRequest;
 import com.pasteleria.pos.dto.SaleResponse;
 import com.pasteleria.pos.service.SaleService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,5 +32,11 @@ public class SaleController {
     @GetMapping("/{id}")
     public SaleResponse getById(@PathVariable UUID id) {
         return saleService.getSale(id);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public SaleResponse cancel(@PathVariable UUID id, @Valid @RequestBody CancelSaleRequest request) {
+        return saleService.cancelSale(id, request.detail());
     }
 }

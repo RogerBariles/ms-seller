@@ -199,6 +199,12 @@ public class ShiftService {
         return findShiftForSale(principal).map(this::toSummary);
     }
 
+    /** Turno abierto de la empresa donde registrar un movimiento de caja: el del usuario o el primero abierto. */
+    public Optional<Shift> findOpenShiftForCompany(UUID userId, UUID companyId) {
+        return shiftRepository.findBySellerIdAndStatus(userId, ShiftStatus.OPEN, companyId)
+                .or(() -> shiftRepository.findFirstByStatusOrderByStartedAtAsc(ShiftStatus.OPEN, companyId));
+    }
+
     private Optional<Shift> findShiftForSale(UserPrincipal principal) {
         UUID companyId = principal.getCompanyId();
         return shiftRepository.findBySellerIdAndStatus(principal.getId(), ShiftStatus.OPEN, companyId)

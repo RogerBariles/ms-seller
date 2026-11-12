@@ -2,6 +2,7 @@ package com.pasteleria.pos.domain.entity;
 
 import com.pasteleria.pos.domain.enums.DiscountType;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.SaleStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -72,6 +73,21 @@ public class Sale {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SaleStatus status = SaleStatus.SOLD;
+
+    /** Motivo de la anulación (vacío mientras la venta está vendida). */
+    @Column(nullable = false, length = 500)
+    private String detail = "";
+
+    @Column(name = "cancelled_at")
+    private OffsetDateTime cancelledAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancelled_by")
+    private User cancelledBy;
 
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
@@ -194,6 +210,42 @@ public class Sale {
 
     public void setCompany(Company company) {
         this.company = company;
+    }
+
+    public SaleStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(SaleStatus status) {
+        this.status = status;
+    }
+
+    public boolean isCancelled() {
+        return status == SaleStatus.CANCELLED;
+    }
+
+    public String getDetail() {
+        return detail;
+    }
+
+    public void setDetail(String detail) {
+        this.detail = detail;
+    }
+
+    public OffsetDateTime getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(OffsetDateTime cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
+    public User getCancelledBy() {
+        return cancelledBy;
+    }
+
+    public void setCancelledBy(User cancelledBy) {
+        this.cancelledBy = cancelledBy;
     }
 
     public List<SaleItem> getItems() {

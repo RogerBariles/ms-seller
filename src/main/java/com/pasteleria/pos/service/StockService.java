@@ -2,6 +2,7 @@ package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Product;
+import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.StockMovement;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.StockMovementType;
@@ -16,7 +17,9 @@ import com.pasteleria.pos.repository.StockMovementRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import com.pasteleria.pos.security.UserPrincipal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -123,6 +126,41 @@ public class StockService {
         movement.setCreatedBy(user);
         movement.setCreatedAt(OffsetDateTime.now());
         stockMovementRepository.save(movement);
+    }
+
+    /**
+     * Devuelve al stock lo que descontó una venta que se anula.
+     * Se basa en los movimientos de salida de esa venta: las ventas anteriores al control de stock
+     * (o las de cumpleaños) no descontaron nada, así que no reponen nada.
+     */
+    public void restoreOnSaleCancellation(Sale sale, User user, String notes) {
+        Map<Product, Integer> deducted = new LinkedHashMap<>();
+        for (StockMovement out : stockMovementRepository.findByReferenceTypeAndReferenceId(
+                StockReferenceType.SALE, sale.getId())) {
+            deducted.merge(out.getProduct(), -out.getQuantityChange(), Integer::sum);
+        }
+
+        deducted.forEach((product, quantity) -> {
+            if (quantity <= 0) {
+                return;
+            }
+            int current = product.getCurrentStock() != null ? product.getCurrentStock() : 0;
+            product.setCurrentStock(current + quantity);
+            productRepository.save(product);
+
+            StockMovement movement = new StockMovement();
+            movement.setId(UUID.randomUUID());
+            movement.setProduct(product);
+            movement.setQuantityChange(quantity);
+            movement.setType(StockMovementType.IN);
+            movement.setReferenceType(StockReferenceType.SALE_CANCELLATION);
+            movement.setReferenceId(sale.getId());
+            movement.setNotes(notes);
+            movement.setCompany(product.getCompany() != null ? product.getCompany() : sale.getCompany());
+            movement.setCreatedBy(user);
+            movement.setCreatedAt(OffsetDateTime.now());
+            stockMovementRepository.save(movement);
+        });
     }
 
     private Product getProductCheckedByCompany(UUID productId, User user) {

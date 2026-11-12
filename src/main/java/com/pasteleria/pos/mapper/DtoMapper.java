@@ -140,6 +140,10 @@ public final class DtoMapper {
                 profit,
                 sale.getCreatedAt(),
                 sale.getAccreditedAt(),
+                sale.getStatus(),
+                sale.getDetail(),
+                sale.getCancelledAt(),
+                sale.getCancelledBy() != null ? sale.getCancelledBy().getName() : null,
                 items);
     }
 

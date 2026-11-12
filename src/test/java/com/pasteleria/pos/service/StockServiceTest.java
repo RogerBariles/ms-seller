@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Product;
+import com.pasteleria.pos.domain.entity.Sale;
 import com.pasteleria.pos.domain.entity.StockMovement;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.StockMovementType;
@@ -31,6 +33,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 class StockServiceTest {
@@ -229,5 +232,44 @@ class StockServiceTest {
         when(productRepository.findByIdAndCompanyId(request.productId(), company.getId())).thenReturn(Optional.empty());
 
         assertThrows(ApiException.class, () -> stockService.adjustStock(request));
+    }
+
+    @Test
+    void restoreOnSaleCancellationReturnsWhatTheSaleDeducted() {
+        Sale sale = new Sale();
+        sale.setId(UUID.randomUUID());
+        sale.setCompany(company);
+        StockMovement out = new StockMovement();
+        out.setProduct(product);
+        out.setQuantityChange(-3);
+        out.setType(StockMovementType.OUT);
+        out.setReferenceType(StockReferenceType.SALE);
+        out.setReferenceId(sale.getId());
+        when(stockMovementRepository.findByReferenceTypeAndReferenceId(StockReferenceType.SALE, sale.getId()))
+                .thenReturn(List.of(out));
+
+        stockService.restoreOnSaleCancellation(sale, user, "Anulación de venta: prueba");
+
+        assertEquals(53, product.getCurrentStock());
+        ArgumentCaptor<StockMovement> captor = ArgumentCaptor.forClass(StockMovement.class);
+        verify(stockMovementRepository).save(captor.capture());
+        StockMovement in = captor.getValue();
+        assertEquals(3, in.getQuantityChange());
+        assertEquals(StockMovementType.IN, in.getType());
+        assertEquals(StockReferenceType.SALE_CANCELLATION, in.getReferenceType());
+        assertEquals(sale.getId(), in.getReferenceId());
+    }
+
+    @Test
+    void restoreOnSaleCancellationDoesNothingForSalesWithoutStockMovements() {
+        Sale sale = new Sale();
+        sale.setId(UUID.randomUUID());
+        when(stockMovementRepository.findByReferenceTypeAndReferenceId(StockReferenceType.SALE, sale.getId()))
+                .thenReturn(List.of());
+
+        stockService.restoreOnSaleCancellation(sale, user, "Anulación de venta: prueba");
+
+        assertEquals(50, product.getCurrentStock());
+        verify(stockMovementRepository, never()).save(any());
     }
 }

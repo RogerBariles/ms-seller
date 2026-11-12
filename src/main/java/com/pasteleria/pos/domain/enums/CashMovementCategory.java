@@ -6,12 +6,15 @@ public enum CashMovementCategory {
     BANK_DEPOSIT,
     OWNER_WITHDRAWAL,
     CHANGE_FUND,
+    /** Devolución del efectivo de una venta anulada. Solo lo genera el sistema al anular. */
+    SALE_CANCELLATION,
     OTHER;
 
     public boolean allowedFor(CashMovementType type) {
         return switch (this) {
             case SUPPLIER_PAYMENT, EXPENSE, BANK_DEPOSIT, OWNER_WITHDRAWAL -> type == CashMovementType.WITHDRAWAL;
             case CHANGE_FUND -> type == CashMovementType.INCOME;
+            case SALE_CANCELLATION -> false;
             case OTHER -> true;
         };
     }

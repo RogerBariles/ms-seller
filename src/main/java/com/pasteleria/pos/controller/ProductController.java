@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -54,6 +55,7 @@ public class ProductController {
     }
 
     @PatchMapping("/bulk-price-increase")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Map<String, Integer> bulkPriceIncrease(@Valid @RequestBody BulkPriceIncreaseRequest request) {
         int updated = productService.bulkPriceIncrease(request);
         return Map.of("updated", updated);

@@ -9,6 +9,8 @@ import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.DiscountType;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.SaleStatus;
+import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.CreateSaleRequest;
 import com.pasteleria.pos.dto.SaleItemRequest;
@@ -23,6 +25,9 @@ import com.pasteleria.pos.util.DiscountCalculator;
 import com.pasteleria.pos.util.MixedPaymentCalculator;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,8 +42,12 @@ public class SaleService {
     private final ProductService productService;
     private final ShiftService shiftService;
     private final CashRegisterService cashRegisterService;
+    private static final ZoneId ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
+    private static final DateTimeFormatter SALE_DATE = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
     private final UserService userService;
     private final StockService stockService;
+    private final ShiftCashMovementService cashMovementService;
 
     public SaleService(
             SaleRepository saleRepository,
@@ -46,13 +55,15 @@ public class SaleService {
             ShiftService shiftService,
             CashRegisterService cashRegisterService,
             UserService userService,
-            StockService stockService) {
+            StockService stockService,
+            ShiftCashMovementService cashMovementService) {
         this.saleRepository = saleRepository;
         this.productService = productService;
         this.shiftService = shiftService;
         this.cashRegisterService = cashRegisterService;
         this.userService = userService;
         this.stockService = stockService;
+        this.cashMovementService = cashMovementService;
     }
 
     @Transactional
@@ -155,6 +166,67 @@ public class SaleService {
 
         sale.setItems(List.of(item));
         return DtoMapper.toSaleResponse(saleRepository.save(sale));
+    }
+
+    /**
+     * Anula una venta: repone el stock que descontó y, si se cobró algo en efectivo,
+     * lo devuelve con un retiro en un turno abierto (el de la venta si sigue abierto).
+     */
+    @Transactional
+    public SaleResponse cancelSale(UUID id, String detail) {
+        Sale sale = saleRepository.findById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Venta no encontrada"));
+        if (sale.isCancelled()) {
+            throw new ApiException(HttpStatus.CONFLICT, "La venta ya está anulada");
+        }
+        if (sale.isBirthday()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Las ventas de cumpleaños no se pueden anular");
+        }
+        String reason = detail == null ? "" : detail.trim();
+        if (reason.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Indicá el motivo de la anulación");
+        }
+
+        UserPrincipal principal = SecurityUtils.currentUser();
+        User user = userService.getUserEntity(principal.getId());
+        OffsetDateTime now = OffsetDateTime.now(ZONE);
+
+        BigDecimal cashToRefund = sale.getCashAmount() != null ? sale.getCashAmount() : BigDecimal.ZERO;
+        if (cashToRefund.compareTo(BigDecimal.ZERO) > 0) {
+            Shift refundShift = resolveRefundShift(sale, principal);
+            cashMovementService.registerSaleRefund(refundShift, cashToRefund, refundDetail(sale, reason), user);
+        }
+
+        stockService.restoreOnSaleCancellation(sale, user, "Anulación de venta: " + reason);
+
+        sale.setStatus(SaleStatus.CANCELLED);
+        sale.setDetail(reason);
+        sale.setCancelledAt(now);
+        sale.setCancelledBy(user);
+        return DtoMapper.toSaleResponse(saleRepository.save(sale));
+    }
+
+    /** El efectivo sale del turno de la venta si sigue abierto; si no, de un turno abierto de la empresa. */
+    private Shift resolveRefundShift(Sale sale, UserPrincipal principal) {
+        Shift saleShift = sale.getShift();
+        if (saleShift != null && saleShift.getStatus() == ShiftStatus.OPEN) {
+            return saleShift;
+        }
+        UUID companyId = sale.getCompany() != null
+                ? sale.getCompany().getId()
+                : sale.getSeller().getCompany().getId();
+        return shiftService.findOpenShiftForCompany(principal.getId(), companyId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.CONFLICT,
+                        "La venta tiene efectivo para devolver y no hay ningún turno abierto. "
+                                + "Abrí la caja y un turno para registrar la devolución."));
+    }
+
+    private static String refundDetail(Sale sale, String reason) {
+        String text = "Anulación venta del "
+                + sale.getCreatedAt().atZoneSameInstant(ZONE).format(SALE_DATE)
+                + ": " + reason;
+        return text.length() > 500 ? text.substring(0, 500) : text;
     }
 
     public SaleResponse getSale(UUID id) {

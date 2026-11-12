@@ -2,6 +2,7 @@ package com.pasteleria.pos.dto;
 
 import com.pasteleria.pos.domain.enums.DiscountType;
 import com.pasteleria.pos.domain.enums.PaymentMethod;
+import com.pasteleria.pos.domain.enums.SaleStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -24,6 +25,10 @@ public record SaleResponse(
         BigDecimal profit,
         OffsetDateTime createdAt,
         LocalDate accreditedAt,
+        SaleStatus status,
+        String detail,
+        OffsetDateTime cancelledAt,
+        String cancelledByName,
         List<SaleItemResponse> items
 ) {
 }
