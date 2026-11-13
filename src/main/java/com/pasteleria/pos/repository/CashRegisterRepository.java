@@ -55,6 +55,18 @@ public interface CashRegisterRepository extends JpaRepository<CashRegister, UUID
             """)
     Optional<CashRegister> findByIdWithUsers(@Param("id") UUID id);
 
+    /** Cajas cerradas de la empresa, la más reciente primero (se usa la primera). */
+    @Query("""
+            SELECT cr FROM CashRegister cr
+            JOIN FETCH cr.openedBy
+            LEFT JOIN FETCH cr.closedBy
+            WHERE cr.company.id = :companyId
+              AND cr.status = com.pasteleria.pos.domain.enums.CashRegisterStatus.CLOSED
+            ORDER BY cr.closedAt DESC
+            """)
+    List<CashRegister> findClosedByCompanyOrderByClosedAtDesc(
+            @Param("companyId") UUID companyId, org.springframework.data.domain.Pageable pageable);
+
     @Query("""
             SELECT CASE WHEN COUNT(cr) > 0 THEN true ELSE false END
             FROM CashRegister cr

@@ -10,6 +10,7 @@ import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
+import com.pasteleria.pos.dto.OpeningCashResponse;
 import com.pasteleria.pos.dto.PaymentTotalsResponse;
 import com.pasteleria.pos.dto.ShiftCashMovementResponse;
 import com.pasteleria.pos.exception.ApiException;
@@ -26,6 +27,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,18 +105,62 @@ public class CashRegisterService {
                     "Ya hay una caja abierta. Cierre la caja actual antes de abrir otra.");
         }
 
+        // La caja arranca con el efectivo con el que cerró la anterior; el monto del request
+        // solo se usa la primera vez (cuando la empresa no tiene ninguna caja cerrada).
+        BigDecimal initialCash = lastClosedCashRegister(companyId)
+                .map(this::finalCashOf)
+                .orElseGet(() -> {
+                    if (request == null || request.initialCash() == null) {
+                        throw new ApiException(HttpStatus.BAD_REQUEST,
+                                "Ingresá el efectivo inicial: no hay una caja cerrada anterior para tomarlo");
+                    }
+                    return request.initialCash();
+                });
+
         User user = userService.getUserEntity(principal.getId());
         Company company = user.getCompany();
 
         CashRegister cashRegister = new CashRegister();
         cashRegister.setId(UUID.randomUUID());
         cashRegister.setBusinessDate(today);
-        cashRegister.setInitialCash(request.initialCash());
+        cashRegister.setInitialCash(initialCash);
         cashRegister.setStatus(CashRegisterStatus.OPEN);
         cashRegister.setOpenedBy(user);
         cashRegister.setCompany(company);
         cashRegister.setOpenedAt(OffsetDateTime.now(ZONE));
         return DtoMapper.toCashRegisterResponse(cashRegisterRepository.save(cashRegister));
+    }
+
+    /** Efectivo con el que se abriría la caja ahora (el final de la última caja cerrada). */
+    @Transactional(readOnly = true)
+    public OpeningCashResponse getOpeningCash() {
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        if (companyId == null) {
+            return new OpeningCashResponse(BigDecimal.ZERO, false, null, null, null);
+        }
+        return lastClosedCashRegister(companyId)
+                .map(cr -> new OpeningCashResponse(
+                        finalCashOf(cr),
+                        true,
+                        cr.getBusinessDate(),
+                        cr.getClosedAt(),
+                        cr.getClosedBy() != null ? cr.getClosedBy().getName() : null))
+                .orElseGet(() -> new OpeningCashResponse(BigDecimal.ZERO, false, null, null, null));
+    }
+
+    private Optional<CashRegister> lastClosedCashRegister(UUID companyId) {
+        return cashRegisterRepository.findClosedByCompanyOrderByClosedAtDesc(companyId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst();
+    }
+
+    /** Efectivo final de una caja: inicial + ventas en efectivo + ingresos − retiros (igual que el reporte de cierre). */
+    private BigDecimal finalCashOf(CashRegister cashRegister) {
+        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
+        return cashMovementService.expectedFinalCashForCashRegister(
+                cashRegister.getId(),
+                cashRegister.getInitialCash(),
+                paymentTotals.cash());
     }
 
     @Transactional

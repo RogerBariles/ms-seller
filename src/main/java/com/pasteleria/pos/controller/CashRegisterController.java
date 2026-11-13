@@ -5,6 +5,7 @@ import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
+import com.pasteleria.pos.dto.OpeningCashResponse;
 import com.pasteleria.pos.service.CashRegisterService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -55,8 +56,13 @@ public class CashRegisterController {
         return cashRegisterService.getCashRegisterReport(id);
     }
 
+    @GetMapping("/opening-cash")
+    public OpeningCashResponse getOpeningCash() {
+        return cashRegisterService.getOpeningCash();
+    }
+
     @PostMapping("/open")
-    public CashRegisterResponse open(@Valid @RequestBody OpenCashRegisterRequest request) {
+    public CashRegisterResponse open(@Valid @RequestBody(required = false) OpenCashRegisterRequest request) {
         return cashRegisterService.openCashRegister(request);
     }
 
