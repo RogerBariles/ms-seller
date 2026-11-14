@@ -23,6 +23,8 @@ public record CloseReportResponse(
         PaymentTotalsResponse paymentTotals,
         List<ShiftCashMovementResponse> cashMovements,
         BigDecimal cashIncome,
-        BigDecimal cashWithdrawal
+        BigDecimal cashWithdrawal,
+        /** Solo en reportes de caja: efectivo contado al cerrar (lo que queda para la próxima caja). */
+        BigDecimal closingCash
 ) {
 }

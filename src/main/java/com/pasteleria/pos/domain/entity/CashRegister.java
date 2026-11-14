@@ -51,6 +51,18 @@ public class CashRegister {
     @Column(name = "closed_at")
     private OffsetDateTime closedAt;
 
+    /** Efectivo contado al cerrar; es el inicial de la próxima caja. Null en cierres anteriores a V21. */
+    @Column(name = "closing_cash", precision = 12, scale = 2)
+    private BigDecimal closingCash;
+
+    public BigDecimal getClosingCash() {
+        return closingCash;
+    }
+
+    public void setClosingCash(BigDecimal closingCash) {
+        this.closingCash = closingCash;
+    }
+
     public UUID getId() {
         return id;
     }

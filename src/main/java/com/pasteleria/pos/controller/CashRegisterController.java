@@ -3,6 +3,7 @@ package com.pasteleria.pos.controller;
 import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
+import com.pasteleria.pos.dto.CloseCashRegisterRequest;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.dto.OpeningCashResponse;
@@ -67,7 +68,7 @@ public class CashRegisterController {
     }
 
     @PostMapping("/{id}/close")
-    public CloseReportResponse close(@PathVariable UUID id) {
-        return cashRegisterService.closeCashRegister(id);
+    public CloseReportResponse close(@PathVariable UUID id, @Valid @RequestBody CloseCashRegisterRequest request) {
+        return cashRegisterService.closeCashRegister(id, request);
     }
 }

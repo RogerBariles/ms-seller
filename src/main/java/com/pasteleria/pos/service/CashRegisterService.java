@@ -8,6 +8,7 @@ import com.pasteleria.pos.domain.enums.ShiftStatus;
 import com.pasteleria.pos.dto.CashRegisterActiveResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CashRegisterSummaryResponse;
+import com.pasteleria.pos.dto.CloseCashRegisterRequest;
 import com.pasteleria.pos.dto.CloseReportResponse;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.dto.OpeningCashResponse;
@@ -105,14 +106,14 @@ public class CashRegisterService {
                     "Ya hay una caja abierta. Cierre la caja actual antes de abrir otra.");
         }
 
-        // La caja arranca con el efectivo con el que cerró la anterior; el monto del request
-        // solo se usa la primera vez (cuando la empresa no tiene ninguna caja cerrada).
+        // La caja arranca con el efectivo que se contó al cerrar la anterior. El monto del request
+        // solo se usa si no hay cierre anterior o si ese cierre es previo a este cambio (sin efectivo contado).
         BigDecimal initialCash = lastClosedCashRegister(companyId)
-                .map(this::finalCashOf)
+                .map(CashRegister::getClosingCash)
                 .orElseGet(() -> {
                     if (request == null || request.initialCash() == null) {
                         throw new ApiException(HttpStatus.BAD_REQUEST,
-                                "Ingresá el efectivo inicial: no hay una caja cerrada anterior para tomarlo");
+                                "Ingresá el efectivo inicial: la caja anterior no tiene registrado con cuánto cerró");
                     }
                     return request.initialCash();
                 });
@@ -131,7 +132,7 @@ public class CashRegisterService {
         return DtoMapper.toCashRegisterResponse(cashRegisterRepository.save(cashRegister));
     }
 
-    /** Efectivo con el que se abriría la caja ahora (el final de la última caja cerrada). */
+    /** Efectivo con el que se abriría la caja ahora: el contado al cerrar la última caja. */
     @Transactional(readOnly = true)
     public OpeningCashResponse getOpeningCash() {
         UUID companyId = SecurityUtils.currentUser().getCompanyId();
@@ -140,7 +141,7 @@ public class CashRegisterService {
         }
         return lastClosedCashRegister(companyId)
                 .map(cr -> new OpeningCashResponse(
-                        finalCashOf(cr),
+                        cr.getClosingCash(),
                         true,
                         cr.getBusinessDate(),
                         cr.getClosedAt(),
@@ -148,23 +149,16 @@ public class CashRegisterService {
                 .orElseGet(() -> new OpeningCashResponse(BigDecimal.ZERO, false, null, null, null));
     }
 
+    /** Última caja cerrada de la empresa, siempre que tenga registrado el efectivo con el que cerró. */
     private Optional<CashRegister> lastClosedCashRegister(UUID companyId) {
         return cashRegisterRepository.findClosedByCompanyOrderByClosedAtDesc(companyId, PageRequest.of(0, 1))
                 .stream()
-                .findFirst();
-    }
-
-    /** Efectivo final de una caja: inicial + ventas en efectivo + ingresos − retiros (igual que el reporte de cierre). */
-    private BigDecimal finalCashOf(CashRegister cashRegister) {
-        PaymentTotalsResponse paymentTotals = closeReportBuilder.paymentTotalsByCashRegister(cashRegister.getId());
-        return cashMovementService.expectedFinalCashForCashRegister(
-                cashRegister.getId(),
-                cashRegister.getInitialCash(),
-                paymentTotals.cash());
+                .findFirst()
+                .filter(cr -> cr.getClosingCash() != null);
     }
 
     @Transactional
-    public CloseReportResponse closeCashRegister(UUID id) {
+    public CloseReportResponse closeCashRegister(UUID id, CloseCashRegisterRequest request) {
         UserPrincipal principal = SecurityUtils.currentUser();
         UUID companyId = principal.getCompanyId();
 
@@ -187,6 +181,7 @@ public class CashRegisterService {
         cashRegister.setStatus(CashRegisterStatus.CLOSED);
         cashRegister.setClosedBy(user);
         cashRegister.setClosedAt(closedAt);
+        cashRegister.setClosingCash(request != null ? request.closingCash() : null);
         cashRegisterRepository.save(cashRegister);
 
         return closeReportService.buildCashRegisterReport(cashRegister);

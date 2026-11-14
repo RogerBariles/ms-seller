@@ -62,7 +62,7 @@ public interface CashRegisterRepository extends JpaRepository<CashRegister, UUID
             LEFT JOIN FETCH cr.closedBy
             WHERE cr.company.id = :companyId
               AND cr.status = com.pasteleria.pos.domain.enums.CashRegisterStatus.CLOSED
-            ORDER BY cr.closedAt DESC
+            ORDER BY cr.closedAt DESC NULLS LAST
             """)
     List<CashRegister> findClosedByCompanyOrderByClosedAtDesc(
             @Param("companyId") UUID companyId, org.springframework.data.domain.Pageable pageable);

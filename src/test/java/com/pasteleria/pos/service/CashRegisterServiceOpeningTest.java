@@ -15,9 +15,9 @@ import com.pasteleria.pos.domain.entity.User;
 import com.pasteleria.pos.domain.enums.CashRegisterStatus;
 import com.pasteleria.pos.domain.enums.UserRole;
 import com.pasteleria.pos.dto.CashRegisterResponse;
+import com.pasteleria.pos.dto.CloseCashRegisterRequest;
 import com.pasteleria.pos.dto.OpenCashRegisterRequest;
 import com.pasteleria.pos.dto.OpeningCashResponse;
-import com.pasteleria.pos.dto.PaymentTotalsResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.repository.CashRegisterRepository;
 import com.pasteleria.pos.repository.SaleRepository;
@@ -87,17 +87,21 @@ class CashRegisterServiceOpeningTest {
     }
 
     @Test
-    void opensWithFinalCashOfLastClosedRegisterIgnoringRequest() {
-        CashRegister previous = closedRegister(new BigDecimal("10000"));
-        givenLastClosed(previous);
-        BigDecimal cashSales = new BigDecimal("25000");
-        when(closeReportBuilder.paymentTotalsByCashRegister(previous.getId())).thenReturn(cashTotals(cashSales));
-        when(cashMovementService.expectedFinalCashForCashRegister(previous.getId(), previous.getInitialCash(), cashSales))
-                .thenReturn(new BigDecimal("31500"));
+    void opensWithCountedClosingCashOfLastRegisterIgnoringRequest() {
+        givenLastClosed(closedRegister(new BigDecimal("142900")));
 
         CashRegisterResponse opened = service.openCashRegister(new OpenCashRegisterRequest(new BigDecimal("999")));
 
-        assertEquals(new BigDecimal("31500"), opened.initialCash());
+        assertEquals(new BigDecimal("142900"), opened.initialCash());
+    }
+
+    @Test
+    void legacyCloseWithoutCountedCashUsesRequestAmount() {
+        givenLastClosed(closedRegister(null));
+
+        CashRegisterResponse opened = service.openCashRegister(new OpenCashRegisterRequest(new BigDecimal("150000")));
+
+        assertEquals(new BigDecimal("150000"), opened.initialCash());
     }
 
     @Test
@@ -121,9 +125,6 @@ class CashRegisterServiceOpeningTest {
     void openingCashReportsPreviousClose() {
         CashRegister previous = closedRegister(new BigDecimal("2000"));
         givenLastClosed(previous);
-        when(closeReportBuilder.paymentTotalsByCashRegister(previous.getId())).thenReturn(cashTotals(BigDecimal.ZERO));
-        when(cashMovementService.expectedFinalCashForCashRegister(eq(previous.getId()), any(), any()))
-                .thenReturn(new BigDecimal("2000"));
 
         OpeningCashResponse response = service.getOpeningCash();
 
@@ -131,6 +132,13 @@ class CashRegisterServiceOpeningTest {
         assertEquals(new BigDecimal("2000"), response.initialCash());
         assertEquals(previous.getBusinessDate(), response.previousBusinessDate());
         assertEquals("Rocío", response.previousClosedByName());
+    }
+
+    @Test
+    void openingCashIsManualWhenLastCloseHasNoCountedCash() {
+        givenLastClosed(closedRegister(null));
+
+        assertFalse(service.getOpeningCash().fromPreviousClose());
     }
 
     @Test
@@ -143,16 +151,31 @@ class CashRegisterServiceOpeningTest {
         assertEquals(BigDecimal.ZERO, response.initialCash());
     }
 
+    @Test
+    void closeStoresCountedCash() {
+        CashRegister open = closedRegister(null);
+        open.setStatus(CashRegisterStatus.OPEN);
+        open.setClosedAt(null);
+        when(cashRegisterRepository.existsByIdAndCompanyId(open.getId(), COMPANY_ID)).thenReturn(true);
+        when(cashRegisterRepository.findByIdWithUsers(open.getId())).thenReturn(java.util.Optional.of(open));
+
+        service.closeCashRegister(open.getId(), new CloseCashRegisterRequest(new BigDecimal("120000")));
+
+        assertEquals(CashRegisterStatus.CLOSED, open.getStatus());
+        assertEquals(new BigDecimal("120000"), open.getClosingCash());
+    }
+
     private void givenLastClosed(CashRegister register) {
         when(cashRegisterRepository.findClosedByCompanyOrderByClosedAtDesc(eq(COMPANY_ID), any(Pageable.class)))
                 .thenReturn(register == null ? List.of() : List.of(register));
     }
 
-    private CashRegister closedRegister(BigDecimal initialCash) {
+    private CashRegister closedRegister(BigDecimal closingCash) {
         CashRegister register = new CashRegister();
         register.setId(UUID.randomUUID());
         register.setBusinessDate(LocalDate.now().minusDays(1));
-        register.setInitialCash(initialCash);
+        register.setInitialCash(new BigDecimal("100000"));
+        register.setClosingCash(closingCash);
         register.setStatus(CashRegisterStatus.CLOSED);
         register.setOpenedBy(user);
         register.setClosedBy(user);
@@ -162,8 +185,4 @@ class CashRegisterServiceOpeningTest {
         return register;
     }
 
-    private static PaymentTotalsResponse cashTotals(BigDecimal cash) {
-        BigDecimal z = BigDecimal.ZERO;
-        return new PaymentTotalsResponse(cash, z, z, z, z, z);
-    }
 }

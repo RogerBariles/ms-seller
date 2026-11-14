@@ -83,7 +83,8 @@ public class CloseReportService {
                 paymentTotals,
                 movements,
                 cashIncome,
-                cashWithdrawal);
+                cashWithdrawal,
+                null);
     }
 
     public CloseReportResponse buildCashRegisterReport(CashRegister cashRegister) {
@@ -118,6 +119,7 @@ public class CloseReportService {
                 paymentTotals,
                 movements,
                 cashIncome,
-                cashWithdrawal);
+                cashWithdrawal,
+                cashRegister.getClosingCash());
     }
 }
