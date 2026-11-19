@@ -66,6 +66,17 @@ class UserListCompanyTest {
                 .andExpect(jsonPath("$[*].username", not(hasItem("vendedora-colon"))));
     }
 
+    @Test
+    void developerListsUsersOfAllCompanies() throws Exception {
+        User developer = user("dev", UserRole.DEVELOPER, centro);
+        String devToken = "Bearer " + jwtService.generateToken(new UserPrincipal(developer));
+
+        mockMvc.perform(get("/api/users").header("Authorization", devToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].username", hasItem("vendedora-centro")))
+                .andExpect(jsonPath("$[*].username", hasItem("vendedora-colon")));
+    }
+
     private Company company(String name) {
         Company company = new Company();
         company.setId(UUID.randomUUID());

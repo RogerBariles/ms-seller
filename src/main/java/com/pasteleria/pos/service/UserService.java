@@ -33,10 +33,14 @@ public class UserService {
         this.companyService = companyService;
     }
 
-    /** Solo los usuarios de la empresa del usuario logueado (sin empresa en el token: todos). */
+    /**
+     * Solo los usuarios de la empresa del usuario logueado.
+     * DEVELOPER (o un usuario sin empresa en el token) ve los de todas las empresas.
+     */
     public List<UserResponse> listUsers() {
-        UUID companyId = SecurityUtils.currentUser().getCompanyId();
-        List<User> users = companyId != null
+        UserPrincipal current = SecurityUtils.currentUser();
+        UUID companyId = current.getCompanyId();
+        List<User> users = companyId != null && current.getRole() != UserRole.DEVELOPER
                 ? userRepository.findByCompanyIdWithCompany(companyId)
                 : userRepository.findAllWithCompany();
         return users.stream()
