@@ -57,7 +57,7 @@ public class UserService {
 
     @Transactional
     public UserResponse createUser(UserRequest request) {
-        validateRoleAssignment(request.role());
+        validateRoleAssignment(request.role(), null);
         if (userRepository.findByUsername(normalizeUsername(request.username())).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "El usuario ya está registrado");
         }
@@ -80,7 +80,7 @@ public class UserService {
     public UserResponse updateUser(UUID id, UserRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-        validateRoleAssignment(request.role());
+        validateRoleAssignment(request.role(), user.getRole());
         if (!user.getUsername().equalsIgnoreCase(request.username())
                 && userRepository.findByUsername(normalizeUsername(request.username())).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "El usuario ya está registrado");
@@ -102,7 +102,14 @@ public class UserService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
     }
 
-    private void validateRoleAssignment(UserRole role) {
+    /**
+     * currentRole: rol actual del usuario que se edita (null al crear).
+     * Nadie puede dar el rol DEVELOPER; un usuario que ya lo tiene puede conservarlo al editarse.
+     */
+    private void validateRoleAssignment(UserRole role, UserRole currentRole) {
+        if (role == UserRole.DEVELOPER && currentRole != UserRole.DEVELOPER) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "No se puede asignar el rol DEVELOPER");
+        }
         UserPrincipal current = SecurityUtils.currentUser();
         if (role == UserRole.SUPER_ADMIN && current.getRole() != UserRole.SUPER_ADMIN) {
             throw new ApiException(HttpStatus.FORBIDDEN, "No puede asignar rol SUPER_ADMIN");

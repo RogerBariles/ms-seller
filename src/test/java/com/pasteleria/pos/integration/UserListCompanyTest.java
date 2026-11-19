@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +78,39 @@ class UserListCompanyTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].username", hasItem("vendedora-centro")))
                 .andExpect(jsonPath("$[*].username", hasItem("vendedora-colon")));
+    }
+
+    @Test
+    void nobodyCanCreateDeveloper() throws Exception {
+        User developer = user("dev2", UserRole.DEVELOPER, centro);
+        for (String token : new String[] {adminToken, "Bearer " + jwtService.generateToken(new UserPrincipal(developer))}) {
+            mockMvc.perform(post("/api/users").header("Authorization", token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(userJson("nuevo-dev", "DEVELOPER", "secreta")))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    void cannotPromoteToDeveloperButDeveloperKeepsRoleOnEdit() throws Exception {
+        User seller = userRepository.findAll().stream()
+                .filter(u -> u.getUsername().equals("vendedora-centro")).findFirst().orElseThrow();
+        mockMvc.perform(put("/api/users/" + seller.getId()).header("Authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson("vendedora-centro", "DEVELOPER", null)))
+                .andExpect(status().isForbidden());
+
+        User developer = user("dev3", UserRole.DEVELOPER, centro);
+        mockMvc.perform(put("/api/users/" + developer.getId()).header("Authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson("dev3", "DEVELOPER", null)))
+                .andExpect(status().isOk());
+    }
+
+    private String userJson(String username, String role, String password) {
+        return """
+                {"name":"%s","username":"%s","password":%s,"role":"%s","active":true,"companyId":"%s"}
+                """.formatted(username, username, password == null ? "null" : "\"" + password + "\"", role, centro.getId());
     }
 
     private Company company(String name) {
