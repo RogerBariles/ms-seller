@@ -244,6 +244,7 @@ public class SaleService {
         return text.length() > 500 ? text.substring(0, 500) : text;
     }
 
+    @Transactional(readOnly = true)
     public SaleResponse getSale(UUID id) {
         Sale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Venta no encontrada"));
