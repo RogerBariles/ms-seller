@@ -157,7 +157,7 @@ class SaleServiceTest {
         Shift openShift = shiftWithStatus(ShiftStatus.OPEN);
         Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("1500.00"), openShift);
         when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
-        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.saveAndFlush(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SaleResponse response = saleService.cancelSale(sale.getId(), "  Cliente devolvió la torta  ");
 
@@ -174,7 +174,7 @@ class SaleServiceTest {
     void cancelCardSaleDoesNotTouchCash() {
         Sale sale = saleWith(PaymentMethod.TARJETA, BigDecimal.ZERO, shiftWithStatus(ShiftStatus.CLOSED));
         when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
-        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.saveAndFlush(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SaleResponse response = saleService.cancelSale(sale.getId(), "Error de carga");
 
@@ -188,7 +188,7 @@ class SaleServiceTest {
         Sale sale = saleWith(PaymentMethod.EFECTIVO, new BigDecimal("800.00"), shiftWithStatus(ShiftStatus.CLOSED));
         Shift currentShift = shiftWithStatus(ShiftStatus.OPEN);
         when(saleRepository.findById(sale.getId())).thenReturn(Optional.of(sale));
-        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.saveAndFlush(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(shiftService.findOpenShiftForCompany(SELLER_ID, SELLER_COMPANY_ID)).thenReturn(Optional.of(currentShift));
 
         saleService.cancelSale(sale.getId(), "Se anuló al día siguiente");

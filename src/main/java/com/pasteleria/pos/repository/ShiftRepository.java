@@ -77,9 +77,17 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
               AND s.company.id = :companyId
             ORDER BY s.startedAt ASC
             """)
-    Optional<Shift> findFirstByStatusOrderByStartedAtAsc(
+    List<Shift> findOpenCandidatesOrderByStartedAtAsc(
             @Param("status") ShiftStatus status,
             @Param("companyId") UUID companyId);
+
+    /**
+     * Turno más antiguo con ese estado. Con @Query, Spring ignora el "First" del nombre y un Optional
+     * con varios resultados lanza IncorrectResultSizeDataAccessException, por eso se toma el primero de la lista.
+     */
+    default Optional<Shift> findFirstByStatusOrderByStartedAtAsc(ShiftStatus status, UUID companyId) {
+        return findOpenCandidatesOrderByStartedAtAsc(status, companyId).stream().findFirst();
+    }
 
     @Query("""
             SELECT s FROM Shift s
@@ -100,7 +108,11 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
             WHERE s.status = :status
             ORDER BY s.startedAt ASC
             """)
-    Optional<Shift> findFirstByStatusOrderByStartedAtAscUnscoped(@Param("status") ShiftStatus status);
+    List<Shift> findOpenCandidatesOrderByStartedAtAscUnscoped(@Param("status") ShiftStatus status);
+
+    default Optional<Shift> findFirstByStatusOrderByStartedAtAscUnscoped(ShiftStatus status) {
+        return findOpenCandidatesOrderByStartedAtAscUnscoped(status).stream().findFirst();
+    }
 
     @Query("""
             SELECT s FROM Shift s

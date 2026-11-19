@@ -31,6 +31,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +44,7 @@ public class SaleService {
     private final ProductService productService;
     private final ShiftService shiftService;
     private final CashRegisterService cashRegisterService;
+    private static final Logger log = LoggerFactory.getLogger(SaleService.class);
     private static final ZoneId ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
     private static final DateTimeFormatter SALE_DATE = DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
@@ -174,6 +177,7 @@ public class SaleService {
      */
     @Transactional
     public SaleResponse cancelSale(UUID id, String detail) {
+        log.info("Anulación de venta {}: inicio", id);
         Sale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Venta no encontrada"));
         if (sale.isCancelled()) {
@@ -192,18 +196,29 @@ public class SaleService {
         OffsetDateTime now = OffsetDateTime.now(ZONE);
 
         BigDecimal cashToRefund = sale.getCashAmount() != null ? sale.getCashAmount() : BigDecimal.ZERO;
+        log.info("Anulación de venta {}: usuario={} rol={} empresaUsuario={} empresaVenta={} creada={} pago={} total={} efectivo={} turno={} estadoTurno={}",
+                id, principal.getId(), principal.getRole(), principal.getCompanyId(),
+                sale.getCompany() != null ? sale.getCompany().getId() : null,
+                sale.getCreatedAt(), sale.getPaymentMethod(), sale.getTotal(), cashToRefund,
+                sale.getShift() != null ? sale.getShift().getId() : null,
+                sale.getShift() != null ? sale.getShift().getStatus() : null);
         if (cashToRefund.compareTo(BigDecimal.ZERO) > 0) {
             Shift refundShift = resolveRefundShift(sale, principal);
+            log.info("Anulación de venta {}: devolución de {} en el turno {}", id, cashToRefund, refundShift.getId());
             cashMovementService.registerSaleRefund(refundShift, cashToRefund, refundDetail(sale, reason), user);
+            log.info("Anulación de venta {}: retiro registrado", id);
         }
 
         stockService.restoreOnSaleCancellation(sale, user, "Anulación de venta: " + reason);
+        log.info("Anulación de venta {}: stock repuesto", id);
 
         sale.setStatus(SaleStatus.CANCELLED);
         sale.setDetail(reason);
         sale.setCancelledAt(now);
         sale.setCancelledBy(user);
-        return DtoMapper.toSaleResponse(saleRepository.save(sale));
+        SaleResponse response = DtoMapper.toSaleResponse(saleRepository.saveAndFlush(sale));
+        log.info("Anulación de venta {}: completada", id);
+        return response;
     }
 
     /** El efectivo sale del turno de la venta si sigue abierto; si no, de un turno abierto de la empresa. */
