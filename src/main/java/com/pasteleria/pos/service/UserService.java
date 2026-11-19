@@ -33,8 +33,13 @@ public class UserService {
         this.companyService = companyService;
     }
 
+    /** Solo los usuarios de la empresa del usuario logueado (sin empresa en el token: todos). */
     public List<UserResponse> listUsers() {
-        return userRepository.findAllWithCompany().stream()
+        UUID companyId = SecurityUtils.currentUser().getCompanyId();
+        List<User> users = companyId != null
+                ? userRepository.findByCompanyIdWithCompany(companyId)
+                : userRepository.findAllWithCompany();
+        return users.stream()
                 .map(DtoMapper::toUserResponse)
                 .toList();
     }

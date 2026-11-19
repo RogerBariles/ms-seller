@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.company ORDER BY u.name")
     List<User> findAllWithCompany();
 
+    @Query("SELECT u FROM User u JOIN FETCH u.company c WHERE c.id = :companyId ORDER BY u.name")
+    List<User> findByCompanyIdWithCompany(@Param("companyId") UUID companyId);
+
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.company WHERE u.role IN :roles ORDER BY u.name")
     List<User> findByRoleInWithCompany(@Param("roles") List<UserRole> roles);
 
