@@ -46,6 +46,10 @@ public class Customer {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    /** true desde el alta hasta su primera venta: esa venta recibe el 5% de bienvenida. */
+    @Column(name = "welcome_pending", nullable = false)
+    private boolean welcomePending;
+
     public UUID getId() {
         return id;
     }
@@ -116,5 +120,13 @@ public class Customer {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isWelcomePending() {
+        return welcomePending;
+    }
+
+    public void setWelcomePending(boolean welcomePending) {
+        this.welcomePending = welcomePending;
     }
 }

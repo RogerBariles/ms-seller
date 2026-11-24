@@ -135,6 +135,7 @@ class SaleServiceTest {
         assertEquals(new BigDecimal("95.00"), response.total());
         assertEquals(new BigDecimal("5.00"), response.discountTotal());
         assertEquals(new BigDecimal("95.00"), response.cashAmount());
+        assertEquals(false, lastCustomer.isWelcomePending());
     }
 
     @Test
@@ -175,6 +176,8 @@ class SaleServiceTest {
         assertEquals(new BigDecimal("2.00"), response.customerDiscount());
     }
 
+    private com.pasteleria.pos.domain.entity.Customer lastCustomer;
+
     private SaleResponse sellWithCustomer(
             boolean firstPurchase, PaymentMethod method, BigDecimal percentOff, BigDecimal cashAmount) {
         return sellWithCustomer(firstPurchase, method, percentOff, cashAmount, null);
@@ -192,6 +195,8 @@ class SaleServiceTest {
         customer.setFullName("Ana Pérez");
         customer.setDni("30111222");
         when(customerService.getEntity(customer.getId())).thenReturn(customer);
+        customer.setWelcomePending(firstPurchase);
+        lastCustomer = customer;
         when(customerService.isFirstPurchase(customer.getId())).thenReturn(firstPurchase);
 
         return saleService.createSale(new CreateSaleRequest(

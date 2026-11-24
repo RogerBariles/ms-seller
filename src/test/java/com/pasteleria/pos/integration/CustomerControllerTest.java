@@ -42,6 +42,9 @@ class CustomerControllerTest {
     @Autowired
     private CompanyRepository companyRepository;
 
+    @Autowired
+    private com.pasteleria.pos.repository.CustomerRepository customerRepository;
+
     private String token;
 
     @BeforeEach
@@ -81,6 +84,24 @@ class CustomerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Ana Pérez"))
                 .andExpect(jsonPath("$.firstPurchase").value(true));
+    }
+
+    @Test
+    void alreadyRegisteredCustomerHasNoWelcome() throws Exception {
+        com.pasteleria.pos.domain.entity.Customer existing = new com.pasteleria.pos.domain.entity.Customer();
+        existing.setId(UUID.randomUUID());
+        existing.setFullName("Cliente Viejo");
+        existing.setDni("30999888");
+        existing.setBirthDate(java.time.LocalDate.of(1985, 1, 1));
+        existing.setWhatsapp("1155555555");
+        existing.setCompany(companyRepository.findAll().get(0));
+        existing.setCreatedBy(userRepository.findAll().get(0));
+        existing.setCreatedAt(java.time.OffsetDateTime.now());
+        customerRepository.save(existing);
+
+        mockMvc.perform(get("/api/customers/by-dni").param("dni", "30999888").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstPurchase").value(false));
     }
 
     @Test

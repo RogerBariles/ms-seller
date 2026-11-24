@@ -104,6 +104,10 @@ public class SaleService {
         if (request.customerId() != null) {
             sale.setCustomer(customerService.getEntity(request.customerId()));
             welcomeDiscount = customerService.isFirstPurchase(request.customerId());
+            if (welcomeDiscount) {
+                // La bienvenida se usa una sola vez (se repone si se anula esta venta).
+                sale.getCustomer().setWelcomePending(false);
+            }
         }
 
         List<SaleItem> items = buildItems(sale, seller, request.items());
@@ -239,6 +243,10 @@ public class SaleService {
         stockService.restoreOnSaleCancellation(sale, user, "Anulación de venta: " + reason);
         log.info("Anulación de venta {}: stock repuesto", id);
 
+        if (sale.getCustomer() != null && sale.getCustomerDiscount() != null
+                && sale.getCustomerDiscount().compareTo(BigDecimal.ZERO) > 0) {
+            sale.getCustomer().setWelcomePending(true);
+        }
         sale.setStatus(SaleStatus.CANCELLED);
         sale.setDetail(reason);
         sale.setCancelledAt(now);

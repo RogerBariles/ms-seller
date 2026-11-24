@@ -37,7 +37,7 @@ public class CustomerService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Ingresá al menos 8 dígitos del DNI");
         }
         return customerRepository.findByDni(normalized)
-                .map(c -> DtoMapper.toCustomerResponse(c, isFirstPurchase(c.getId())));
+                .map(c -> DtoMapper.toCustomerResponse(c, isEligibleForWelcome(c)));
     }
 
     @Transactional
@@ -63,12 +63,20 @@ public class CustomerService {
         customer.setCompany(user.getCompany());
         customer.setCreatedBy(user);
         customer.setCreatedAt(OffsetDateTime.now());
+        customer.setWelcomePending(true);
         return DtoMapper.toCustomerResponse(customerRepository.save(customer), true);
     }
 
-    /** Primera compra = el cliente no tiene ventas (no anuladas) todavía. */
+    /**
+     * Bienvenida = cliente dado de alta desde "Asociar cliente" que todavía no compró.
+     * Los clientes ya registrados (sin la marca) no reciben el descuento.
+     */
     public boolean isFirstPurchase(UUID customerId) {
-        return !saleRepository.customerHasPurchases(customerId);
+        return isEligibleForWelcome(getEntity(customerId));
+    }
+
+    private boolean isEligibleForWelcome(Customer customer) {
+        return customer.isWelcomePending() && !saleRepository.customerHasPurchases(customer.getId());
     }
 
     public Customer getEntity(UUID id) {
