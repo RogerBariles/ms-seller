@@ -45,6 +45,8 @@ public class SaleService {
     private final ShiftService shiftService;
     private final CashRegisterService cashRegisterService;
     private static final Logger log = LoggerFactory.getLogger(SaleService.class);
+    /** Descuento de bienvenida (%) en la primera compra de un cliente, sobre el total final. */
+    static final BigDecimal WELCOME_DISCOUNT_PERCENT = BigDecimal.valueOf(5);
     private static final ZoneId ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
     private static final DateTimeFormatter SALE_DATE = DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
@@ -98,8 +100,10 @@ public class SaleService {
         sale.setTotalDiscountType(totalDiscountType);
         sale.setTotalDiscountValue(totalDiscountValue);
         sale.setBirthday(false);
+        boolean welcomeDiscount = false;
         if (request.customerId() != null) {
             sale.setCustomer(customerService.getEntity(request.customerId()));
+            welcomeDiscount = customerService.isFirstPurchase(request.customerId());
         }
 
         List<SaleItem> items = buildItems(sale, seller, request.items());
@@ -130,12 +134,22 @@ public class SaleService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El total de la venta debe ser mayor a cero");
         }
 
+        // 5% de bienvenida sobre el total final (después de descuentos, recargos o total manual).
+        // Con pago mixto se descuenta de la parte no efectivo; el efectivo nunca supera el total.
+        BigDecimal customerDiscount = welcomeDiscount
+                ? totals.total().multiply(WELCOME_DISCOUNT_PERCENT)
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal finalTotal = totals.total().subtract(customerDiscount);
+        BigDecimal finalCashPortion = cashPortion != null ? cashPortion.min(finalTotal) : null;
+
         sale.setItems(items);
         sale.setSubtotal(totals.subtotal());
-        sale.setDiscountTotal(totals.discountTotal());
-        sale.setTotal(totals.total());
+        sale.setDiscountTotal(totals.discountTotal().add(customerDiscount));
+        sale.setCustomerDiscount(customerDiscount);
+        sale.setTotal(finalTotal);
         sale.setCashAmount(MixedPaymentCalculator.resolveCashAmount(
-                request.paymentMethod(), cashPortion, totals.total()));
+                request.paymentMethod(), finalCashPortion, finalTotal));
         sale.setAccreditedAt(AccreditationDateCalculator.calculate(
                 sale.getPaymentMethod(), sale.getCreatedAt()));
 

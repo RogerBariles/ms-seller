@@ -74,11 +74,13 @@ class CustomerControllerTest {
                         .content(json("30111222", "1151234567", "")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dni").value("30111222"))
-                .andExpect(jsonPath("$.email").doesNotExist());
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.firstPurchase").value(true));
 
         mockMvc.perform(get("/api/customers/by-dni").param("dni", "30111222").header("Authorization", token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.fullName").value("Ana Pérez"));
+                .andExpect(jsonPath("$.fullName").value("Ana Pérez"))
+                .andExpect(jsonPath("$.firstPurchase").value(true));
     }
 
     @Test

@@ -128,6 +128,59 @@ class SaleServiceTest {
     }
 
     @Test
+    void firstPurchaseOfCustomerGetsFivePercentOffInCash() {
+        SaleResponse response = sellWithCustomer(true, PaymentMethod.EFECTIVO, null, null);
+
+        assertEquals(new BigDecimal("5.00"), response.customerDiscount());
+        assertEquals(new BigDecimal("95.00"), response.total());
+        assertEquals(new BigDecimal("5.00"), response.discountTotal());
+        assertEquals(new BigDecimal("95.00"), response.cashAmount());
+    }
+
+    @Test
+    void welcomeDiscountAppliesOnTopOfOtherDiscountsAndKeepsPartialCash() {
+        // 50 en efectivo + 50 con 10% off = 95 -> 5% de bienvenida = 4.75 -> 90.25 (el efectivo de 50 se mantiene)
+        SaleResponse response = sellWithCustomer(true, PaymentMethod.TRANSFERENCIA,
+                new BigDecimal("10"), new BigDecimal("50"));
+
+        assertEquals(new BigDecimal("4.75"), response.customerDiscount());
+        assertEquals(new BigDecimal("90.25"), response.total());
+        assertEquals(new BigDecimal("50.00"), response.cashAmount());
+    }
+
+    @Test
+    void returningCustomerHasNoWelcomeDiscount() {
+        SaleResponse response = sellWithCustomer(false, PaymentMethod.EFECTIVO, null, null);
+
+        assertEquals(new BigDecimal("0.00"), response.customerDiscount());
+        assertEquals(new BigDecimal("100.00"), response.total());
+    }
+
+    private SaleResponse sellWithCustomer(
+            boolean firstPurchase, PaymentMethod method, BigDecimal percentOff, BigDecimal cashAmount) {
+        UUID productId = UUID.randomUUID();
+        Product product = createProductWithCompany(productId, SELLER_COMPANY_ID, "Product A", true);
+        when(productService.getActiveProduct(productId)).thenReturn(product);
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        com.pasteleria.pos.domain.entity.Customer customer = new com.pasteleria.pos.domain.entity.Customer();
+        customer.setId(UUID.randomUUID());
+        customer.setFullName("Ana Pérez");
+        customer.setDni("30111222");
+        when(customerService.getEntity(customer.getId())).thenReturn(customer);
+        when(customerService.isFirstPurchase(customer.getId())).thenReturn(firstPurchase);
+
+        return saleService.createSale(new CreateSaleRequest(
+                List.of(new SaleItemRequest(productId, 1, null, null)),
+                method,
+                null,
+                percentOff != null ? com.pasteleria.pos.domain.enums.DiscountType.PERCENTAGE : null,
+                percentOff,
+                null,
+                cashAmount,
+                customer.getId()));
+    }
+
+    @Test
     void buildItemsWithMatchingCompanySucceeds() {
         UUID productId = UUID.randomUUID();
         Product product = createProductWithCompany(productId, SELLER_COMPANY_ID, "Product A", true);

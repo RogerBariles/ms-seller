@@ -9,6 +9,8 @@ public record CustomerResponse(
         String dni,
         LocalDate birthDate,
         String whatsapp,
-        String email
+        String email,
+        /** true si todavía no tiene compras: la venta recibe el descuento de bienvenida. */
+        boolean firstPurchase
 ) {
 }

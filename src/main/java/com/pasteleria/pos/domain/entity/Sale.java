@@ -48,6 +48,10 @@ public class Sale {
     @Column(name = "discount_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal discountTotal;
 
+    /** Descuento de bienvenida por primera compra del cliente (incluido en discountTotal). */
+    @Column(name = "customer_discount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal customerDiscount = BigDecimal.ZERO;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
 
@@ -143,6 +147,14 @@ public class Sale {
 
     public void setSubtotal(BigDecimal subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public BigDecimal getCustomerDiscount() {
+        return customerDiscount;
+    }
+
+    public void setCustomerDiscount(BigDecimal customerDiscount) {
+        this.customerDiscount = customerDiscount;
     }
 
     public BigDecimal getDiscountTotal() {

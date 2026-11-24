@@ -17,6 +17,8 @@ public record SaleResponse(
         Integer installments,
         BigDecimal subtotal,
         BigDecimal discountTotal,
+        /** Parte de discountTotal que corresponde al 5% de bienvenida del cliente. */
+        BigDecimal customerDiscount,
         BigDecimal total,
         BigDecimal cashAmount,
         DiscountType totalDiscountType,

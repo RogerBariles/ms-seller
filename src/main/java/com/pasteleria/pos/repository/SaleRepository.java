@@ -20,6 +20,14 @@ import org.springframework.data.repository.query.Param;
  */
 public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
+    /** Compras (no anuladas) del cliente: si no tiene ninguna, la próxima es su primera compra. */
+    @Query("""
+            SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Sale s
+            WHERE s.customer.id = :customerId
+              AND s.status <> com.pasteleria.pos.domain.enums.SaleStatus.CANCELLED
+            """)
+    boolean customerHasPurchases(@Param("customerId") UUID customerId);
+
     @Query("""
             SELECT COALESCE(SUM(s.total), 0) FROM Sale s
             WHERE s.shift.id = :shiftId AND s.paymentMethod = :paymentMethod

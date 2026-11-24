@@ -7,6 +7,7 @@ import com.pasteleria.pos.dto.CustomerResponse;
 import com.pasteleria.pos.exception.ApiException;
 import com.pasteleria.pos.mapper.DtoMapper;
 import com.pasteleria.pos.repository.CustomerRepository;
+import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -20,10 +21,13 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final UserService userService;
+    private final SaleRepository saleRepository;
 
-    public CustomerService(CustomerRepository customerRepository, UserService userService) {
+    public CustomerService(
+            CustomerRepository customerRepository, UserService userService, SaleRepository saleRepository) {
         this.customerRepository = customerRepository;
         this.userService = userService;
+        this.saleRepository = saleRepository;
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +36,8 @@ public class CustomerService {
         if (normalized.length() < 8) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Ingresá al menos 8 dígitos del DNI");
         }
-        return customerRepository.findByDni(normalized).map(DtoMapper::toCustomerResponse);
+        return customerRepository.findByDni(normalized)
+                .map(c -> DtoMapper.toCustomerResponse(c, isFirstPurchase(c.getId())));
     }
 
     @Transactional
@@ -58,7 +63,12 @@ public class CustomerService {
         customer.setCompany(user.getCompany());
         customer.setCreatedBy(user);
         customer.setCreatedAt(OffsetDateTime.now());
-        return DtoMapper.toCustomerResponse(customerRepository.save(customer));
+        return DtoMapper.toCustomerResponse(customerRepository.save(customer), true);
+    }
+
+    /** Primera compra = el cliente no tiene ventas (no anuladas) todavía. */
+    public boolean isFirstPurchase(UUID customerId) {
+        return !saleRepository.customerHasPurchases(customerId);
     }
 
     public Customer getEntity(UUID id) {

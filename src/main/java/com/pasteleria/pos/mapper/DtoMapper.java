@@ -134,6 +134,7 @@ public final class DtoMapper {
                 sale.getInstallments(),
                 sale.getSubtotal(),
                 sale.getDiscountTotal(),
+                sale.getCustomerDiscount(),
                 sale.getTotal(),
                 sale.getCashAmount(),
                 sale.getTotalDiscountType(),
@@ -146,18 +147,19 @@ public final class DtoMapper {
                 sale.getDetail(),
                 sale.getCancelledAt(),
                 sale.getCancelledBy() != null ? sale.getCancelledBy().getName() : null,
-                sale.getCustomer() != null ? toCustomerResponse(sale.getCustomer()) : null,
+                sale.getCustomer() != null ? toCustomerResponse(sale.getCustomer(), false) : null,
                 items);
     }
 
-    public static CustomerResponse toCustomerResponse(Customer customer) {
+    public static CustomerResponse toCustomerResponse(Customer customer, boolean firstPurchase) {
         return new CustomerResponse(
                 customer.getId(),
                 customer.getFullName(),
                 customer.getDni(),
                 customer.getBirthDate(),
                 customer.getWhatsapp(),
-                customer.getEmail());
+                customer.getEmail(),
+                firstPurchase);
     }
 
     public static StockResponse toStockResponse(Product product) {
