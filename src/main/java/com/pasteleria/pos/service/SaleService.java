@@ -134,18 +134,25 @@ public class SaleService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El total de la venta debe ser mayor a cero");
         }
 
-        // 5% de bienvenida sobre el total final (después de descuentos, recargos o total manual).
+        // 5% de bienvenida sobre el total final (después de descuentos o recargos).
         // Con pago mixto se descuenta de la parte no efectivo; el efectivo nunca supera el total.
+        // Con total manual, ese monto ya es el TOTAL a cobrar: la bienvenida se calcula sobre el
+        // total automático solo para registrarla (incluida en el descuento total), sin restarla otra vez.
+        boolean manual = request.manualTotal() != null;
+        BigDecimal welcomeBase = manual ? afterLineDiscounts : totals.total();
         BigDecimal customerDiscount = welcomeDiscount
-                ? totals.total().multiply(WELCOME_DISCOUNT_PERCENT)
+                ? welcomeBase.multiply(WELCOME_DISCOUNT_PERCENT)
                         .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal finalTotal = totals.total().subtract(customerDiscount);
+        if (manual) {
+            customerDiscount = customerDiscount.min(totals.discountTotal().max(BigDecimal.ZERO));
+        }
+        BigDecimal finalTotal = manual ? totals.total() : totals.total().subtract(customerDiscount);
         BigDecimal finalCashPortion = cashPortion != null ? cashPortion.min(finalTotal) : null;
 
         sale.setItems(items);
         sale.setSubtotal(totals.subtotal());
-        sale.setDiscountTotal(totals.discountTotal().add(customerDiscount));
+        sale.setDiscountTotal(manual ? totals.discountTotal() : totals.discountTotal().add(customerDiscount));
         sale.setCustomerDiscount(customerDiscount);
         sale.setTotal(finalTotal);
         sale.setCashAmount(MixedPaymentCalculator.resolveCashAmount(

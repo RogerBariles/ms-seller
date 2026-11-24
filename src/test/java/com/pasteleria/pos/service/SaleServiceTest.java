@@ -156,8 +156,33 @@ class SaleServiceTest {
         assertEquals(new BigDecimal("100.00"), response.total());
     }
 
+    @Test
+    void manualTotalIsTheFinalTotalAndWelcomeIsOnlyRecorded() {
+        // Lista 100 -> bienvenida sugerida 95; el vendedor edita el TOTAL a 90: se cobra 90, no 85.50
+        SaleResponse response = sellWithCustomer(true, PaymentMethod.EFECTIVO, null, null, new BigDecimal("90"));
+
+        assertEquals(new BigDecimal("90.00"), response.total());
+        assertEquals(new BigDecimal("10.00"), response.discountTotal());
+        assertEquals(new BigDecimal("5.00"), response.customerDiscount());
+        assertEquals(new BigDecimal("90.00"), response.cashAmount());
+    }
+
+    @Test
+    void manualTotalAboveSuggestedKeepsWelcomeWithinTotalDiscount() {
+        SaleResponse response = sellWithCustomer(true, PaymentMethod.EFECTIVO, null, null, new BigDecimal("98"));
+
+        assertEquals(new BigDecimal("98.00"), response.total());
+        assertEquals(new BigDecimal("2.00"), response.customerDiscount());
+    }
+
     private SaleResponse sellWithCustomer(
             boolean firstPurchase, PaymentMethod method, BigDecimal percentOff, BigDecimal cashAmount) {
+        return sellWithCustomer(firstPurchase, method, percentOff, cashAmount, null);
+    }
+
+    private SaleResponse sellWithCustomer(
+            boolean firstPurchase, PaymentMethod method, BigDecimal percentOff, BigDecimal cashAmount,
+            BigDecimal manualTotal) {
         UUID productId = UUID.randomUUID();
         Product product = createProductWithCompany(productId, SELLER_COMPANY_ID, "Product A", true);
         when(productService.getActiveProduct(productId)).thenReturn(product);
@@ -175,7 +200,7 @@ class SaleServiceTest {
                 null,
                 percentOff != null ? com.pasteleria.pos.domain.enums.DiscountType.PERCENTAGE : null,
                 percentOff,
-                null,
+                manualTotal,
                 cashAmount,
                 customer.getId()));
     }
