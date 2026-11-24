@@ -1,5 +1,6 @@
 package com.pasteleria.pos.mapper;
 
+import com.pasteleria.pos.domain.entity.Customer;
 import com.pasteleria.pos.domain.entity.CashRegister;
 import com.pasteleria.pos.domain.entity.Company;
 import com.pasteleria.pos.domain.entity.Product;
@@ -9,6 +10,7 @@ import com.pasteleria.pos.domain.entity.SaleItem;
 import com.pasteleria.pos.domain.entity.Shift;
 import com.pasteleria.pos.domain.entity.ShiftCashMovement;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.dto.CustomerResponse;
 import com.pasteleria.pos.dto.CashRegisterResponse;
 import com.pasteleria.pos.dto.CompanyResponse;
 import com.pasteleria.pos.dto.ProductPriceAuditResponse;
@@ -144,7 +146,18 @@ public final class DtoMapper {
                 sale.getDetail(),
                 sale.getCancelledAt(),
                 sale.getCancelledBy() != null ? sale.getCancelledBy().getName() : null,
+                sale.getCustomer() != null ? toCustomerResponse(sale.getCustomer()) : null,
                 items);
+    }
+
+    public static CustomerResponse toCustomerResponse(Customer customer) {
+        return new CustomerResponse(
+                customer.getId(),
+                customer.getFullName(),
+                customer.getDni(),
+                customer.getBirthDate(),
+                customer.getWhatsapp(),
+                customer.getEmail());
     }
 
     public static StockResponse toStockResponse(Product product) {

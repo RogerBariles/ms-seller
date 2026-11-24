@@ -29,6 +29,7 @@ public record SaleResponse(
         String detail,
         OffsetDateTime cancelledAt,
         String cancelledByName,
+        CustomerResponse customer,
         List<SaleItemResponse> items
 ) {
 }

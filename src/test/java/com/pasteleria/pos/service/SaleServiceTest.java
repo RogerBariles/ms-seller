@@ -51,6 +51,7 @@ class SaleServiceTest {
     private UserService userService;
     private StockService stockService;
     private ShiftCashMovementService cashMovementService;
+    private CustomerService customerService;
     private SaleService saleService;
 
     private static final UUID SELLER_ID = UUID.randomUUID();
@@ -69,9 +70,10 @@ class SaleServiceTest {
         userService = mock(UserService.class);
         stockService = mock(StockService.class);
         cashMovementService = mock(ShiftCashMovementService.class);
+        customerService = mock(CustomerService.class);
         saleService = new SaleService(
                 saleRepository, productService, shiftService, cashRegisterService, userService, stockService,
-                cashMovementService);
+                cashMovementService, customerService);
 
         seller = createSeller();
         UserPrincipal principal = new UserPrincipal(seller);
@@ -105,6 +107,27 @@ class SaleServiceTest {
     }
 
     @Test
+    void createSaleAssociatesCustomer() {
+        UUID productId = UUID.randomUUID();
+        Product product = createProductWithCompany(productId, SELLER_COMPANY_ID, "Product A", true);
+        when(productService.getActiveProduct(productId)).thenReturn(product);
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        com.pasteleria.pos.domain.entity.Customer customer = new com.pasteleria.pos.domain.entity.Customer();
+        customer.setId(UUID.randomUUID());
+        customer.setFullName("Ana Pérez");
+        customer.setDni("30111222");
+        when(customerService.getEntity(customer.getId())).thenReturn(customer);
+
+        SaleResponse response = saleService.createSale(new CreateSaleRequest(
+                List.of(new SaleItemRequest(productId, 1, null, null)),
+                PaymentMethod.EFECTIVO,
+                null, null, null, null, null, customer.getId()));
+
+        assertNotNull(response.customer());
+        assertEquals("30111222", response.customer().dni());
+    }
+
+    @Test
     void buildItemsWithMatchingCompanySucceeds() {
         UUID productId = UUID.randomUUID();
         Product product = createProductWithCompany(productId, SELLER_COMPANY_ID, "Product A", true);
@@ -115,7 +138,7 @@ class SaleServiceTest {
         CreateSaleRequest request = new CreateSaleRequest(
                 List.of(new SaleItemRequest(productId, 1, null, null)),
                 PaymentMethod.EFECTIVO,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertDoesNotThrow(() -> saleService.createSale(request));
     }
@@ -131,7 +154,7 @@ class SaleServiceTest {
         CreateSaleRequest request = new CreateSaleRequest(
                 List.of(new SaleItemRequest(productId, 1, null, null)),
                 PaymentMethod.EFECTIVO,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThrows(ApiException.class, () -> saleService.createSale(request));
     }
@@ -147,7 +170,7 @@ class SaleServiceTest {
         CreateSaleRequest request = new CreateSaleRequest(
                 List.of(new SaleItemRequest(productId, 1, null, null)),
                 PaymentMethod.EFECTIVO,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertDoesNotThrow(() -> saleService.createSale(request));
     }

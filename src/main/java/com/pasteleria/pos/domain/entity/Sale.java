@@ -89,6 +89,11 @@ public class Sale {
     @JoinColumn(name = "cancelled_by")
     private User cancelledBy;
 
+    /** Cliente asociado (opcional). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
 
@@ -246,6 +251,14 @@ public class Sale {
 
     public void setCancelledBy(User cancelledBy) {
         this.cancelledBy = cancelledBy;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
     }
 
     public List<SaleItem> getItems() {

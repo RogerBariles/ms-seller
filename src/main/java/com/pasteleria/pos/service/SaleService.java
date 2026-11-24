@@ -51,6 +51,7 @@ public class SaleService {
     private final UserService userService;
     private final StockService stockService;
     private final ShiftCashMovementService cashMovementService;
+    private final CustomerService customerService;
 
     public SaleService(
             SaleRepository saleRepository,
@@ -59,7 +60,8 @@ public class SaleService {
             CashRegisterService cashRegisterService,
             UserService userService,
             StockService stockService,
-            ShiftCashMovementService cashMovementService) {
+            ShiftCashMovementService cashMovementService,
+            CustomerService customerService) {
         this.saleRepository = saleRepository;
         this.productService = productService;
         this.shiftService = shiftService;
@@ -67,6 +69,7 @@ public class SaleService {
         this.userService = userService;
         this.stockService = stockService;
         this.cashMovementService = cashMovementService;
+        this.customerService = customerService;
     }
 
     @Transactional
@@ -95,6 +98,9 @@ public class SaleService {
         sale.setTotalDiscountType(totalDiscountType);
         sale.setTotalDiscountValue(totalDiscountValue);
         sale.setBirthday(false);
+        if (request.customerId() != null) {
+            sale.setCustomer(customerService.getEntity(request.customerId()));
+        }
 
         List<SaleItem> items = buildItems(sale, seller, request.items());
 
