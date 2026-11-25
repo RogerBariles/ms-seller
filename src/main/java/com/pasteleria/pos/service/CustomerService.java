@@ -2,6 +2,7 @@ package com.pasteleria.pos.service;
 
 import com.pasteleria.pos.domain.entity.Customer;
 import com.pasteleria.pos.domain.entity.User;
+import com.pasteleria.pos.dto.CustomerListItemResponse;
 import com.pasteleria.pos.dto.CustomerRequest;
 import com.pasteleria.pos.dto.CustomerResponse;
 import com.pasteleria.pos.exception.ApiException;
@@ -10,6 +11,7 @@ import com.pasteleria.pos.repository.CustomerRepository;
 import com.pasteleria.pos.repository.SaleRepository;
 import com.pasteleria.pos.security.SecurityUtils;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -38,6 +40,23 @@ public class CustomerService {
         }
         return customerRepository.findByDni(normalized)
                 .map(c -> DtoMapper.toCustomerResponse(c, isEligibleForWelcome(c)));
+    }
+
+    /** Todos los clientes, de todas las empresas. */
+    @Transactional(readOnly = true)
+    public List<CustomerListItemResponse> listAll() {
+        return customerRepository.findAllWithCompanyAndCreator().stream()
+                .map(c -> new CustomerListItemResponse(
+                        c.getId(),
+                        c.getFullName(),
+                        c.getDni(),
+                        c.getBirthDate(),
+                        c.getWhatsapp(),
+                        c.getEmail(),
+                        c.getCompany() != null ? c.getCompany().getName() : null,
+                        c.getCreatedBy() != null ? c.getCreatedBy().getName() : null,
+                        c.getCreatedAt()))
+                .toList();
     }
 
     @Transactional

@@ -105,6 +105,31 @@ class CustomerControllerTest {
     }
 
     @Test
+    void listShowsCustomersOfEveryCompany() throws Exception {
+        Company other = new Company();
+        other.setId(UUID.randomUUID());
+        other.setName("Colón");
+        other.setActive(true);
+        other = companyRepository.save(other);
+
+        com.pasteleria.pos.domain.entity.Customer foreign = new com.pasteleria.pos.domain.entity.Customer();
+        foreign.setId(UUID.randomUUID());
+        foreign.setFullName("Zoe Otra Sucursal");
+        foreign.setDni("30777666");
+        foreign.setBirthDate(java.time.LocalDate.of(1992, 3, 4));
+        foreign.setEmail("zoe@mail.com");
+        foreign.setCompany(other);
+        foreign.setCreatedBy(userRepository.findByUsername("vendedora-clientes").orElseThrow());
+        foreign.setCreatedAt(java.time.OffsetDateTime.now());
+        customerRepository.save(foreign);
+
+        mockMvc.perform(get("/api/customers").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.dni == '30777666')].companyName").value("Colón"))
+                .andExpect(jsonPath("$[?(@.dni == '30777666')].createdByName").value("Vendedora"));
+    }
+
+    @Test
     void requiresWhatsappOrEmail() throws Exception {
         mockMvc.perform(post("/api/customers").header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON)
